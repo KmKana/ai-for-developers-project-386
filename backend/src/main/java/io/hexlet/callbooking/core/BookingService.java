@@ -1,0 +1,120 @@
+package io.hexlet.callbooking.core;
+
+import io.hexlet.callbooking.api.dto.BookingDto;
+import io.hexlet.callbooking.api.dto.BookingInputDto;
+import io.hexlet.callbooking.store.Booking;
+import io.hexlet.callbooking.store.InMemoryStore;
+import io.hexlet.callbooking.store.MeetingType;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
+import java.util.regex.Pattern;
+import org.springframework.stereotype.Service;
+
+/** Запись гостя на свободный слот. */
+@Service
+public class BookingService {
+
+  private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+  private final InMemoryStore store;
+
+  public BookingService(InMemoryStore store) {
+    this.store = store;
+  }
+
+  public BookingDto book(BookingInputDto input) {
+    String meetingTypeId = input.meetingTypeId() == null ? "" : input.meetingTypeId().trim();
+    if (meetingTypeId.isEmpty()) {
+      throw new ApiRequestException(400, "VALIDATION_ERROR", "meetingTypeId обязателен");
+    }
+    MeetingType type = store.findMeetingType(meetingTypeId);
+    if (type == null) {
+      throw new ApiRequestException(
+          400, "MEETING_TYPE_NOT_FOUND", "Тип встречи не найден: " + input.meetingTypeId());
+    }
+    if (input.start() == null) {
+      throw new ApiRequestException(400, "VALIDATION_ERROR", "Время начала обязательно");
+    }
+    String guestName = input.guestName() == null ? "" : input.guestName().trim();
+    if (guestName.isEmpty()) {
+      throw new ApiRequestException(400, "VALIDATION_ERROR", "Имя гостя обязательно");
+    }
+    String guestEmail = input.guestEmail() == null ? "" : input.guestEmail().trim();
+    if (guestEmail.isEmpty() || !EMAIL.matcher(guestEmail).matches()) {
+      throw new ApiRequestException(400, "VALIDATION_ERROR", "Некорректный email гостя");
+    }
+
+    Instant startInstant = input.start().toInstant();
+    long durationMinutes = type.durationMinutes();
+    Instant endInstant = startInstant.plus(Duration.ofMinutes(durationMinutes));
+
+    ZonedDateTime localStart = startInstant.atZone(BookingRules.ZONE);
+    LocalDate date = localStart.toLocalDate();
+    LocalTime time = localStart.toLocalTime();
+    int startMinutes = time.getHour() * 60 + time.getMinute();
+
+    if (date.isBefore(BookingRules.windowStart())
+        || date.isAfter(BookingRules.windowEndInclusive())) {
+      throw new ApiRequestException(
+          409,
+          "OUT_OF_WINDOW",
+          "Дата вне окна записи на %d дней (с %s по %s)"
+              .formatted(
+                  BookingRules.WINDOW_DAYS,
+                  BookingRules.windowStart(),
+                  BookingRules.windowEndInclusive()));
+    }
+    if (!BookingRules.WORK_DAYS.contains(date.getDayOfWeek())) {
+      throw new ApiRequestException(
+          409, "OUTSIDE_WORKING_HOURS", "Выбран нерабочий день владельца: " + date.getDayOfWeek());
+    }
+    if (startMinutes < BookingRules.WORK_START_MINUTES
+        || startMinutes + durationMinutes > BookingRules.WORK_END_MINUTES) {
+      throw new ApiRequestException(
+          409,
+          "OUTSIDE_WORKING_HOURS",
+          "Встреча должна целиком помещаться в рабочие часы 09:00–18:00 "
+              + BookingRules.ZONE.getId());
+    }
+    boolean onGrid =
+        (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
+            && time.getSecond() == 0
+            && time.getNano() == 0;
+    if (!onGrid) {
+      throw new ApiRequestException(
+          409, "OFF_GRID", "Начало встречи должно быть на 30-минутной сетке");
+    }
+
+    var result =
+        store.tryAddBooking(
+            type.id(), type.name(), startInstant, endInstant, guestName, guestEmail);
+    if (result.conflict() != null) {
+      boolean sameStart = result.conflict().start().equals(startInstant);
+      throw new ApiRequestException(
+          409,
+          sameStart ? "SLOT_TAKEN" : "OVERLAP",
+          sameStart ? "Этот слот уже занят" : "Встреча пересекается с другой встречей");
+    }
+    return toDto(result.created());
+  }
+
+  public java.util.List<BookingDto> upcoming() {
+    return store.upcomingBookings().stream().map(BookingService::toDto).toList();
+  }
+
+  private static BookingDto toDto(Booking booking) {
+    return new BookingDto(
+        booking.id(),
+        booking.meetingTypeId(),
+        booking.meetingTypeName(),
+        OffsetDateTime.ofInstant(booking.start(), BookingRules.ZONE),
+        OffsetDateTime.ofInstant(booking.end(), BookingRules.ZONE),
+        booking.guestName(),
+        booking.guestEmail(),
+        booking.createdAt());
+  }
+}
