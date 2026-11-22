@@ -18,12 +18,17 @@ pitchfork = "2.36.0"
 
 [tasks.install]
 description = "Установить зависимости бэкенда и фронтенда"
-depends = ["install-backend", "install-frontend"]
+depends = ["install-backend", "install-contract", "install-frontend"]
 
 [tasks.install-backend]
 description = "Собрать бэкенд и скачать зависимости"
 dir = "backend"
 run = "mvn -B -DskipTests package"
+
+[tasks.install-contract]
+description = "Установить зависимости генерации контракта (TypeSpec)"
+dir = "api/tsp"
+run = "npm ci"
 
 [tasks.install-frontend]
 description = "Установить npm-зависимости фронтенда"
@@ -61,9 +66,13 @@ description = "Проверка типов и сборка фронтенда"
 dir = "frontend"
 run = "npm run build"
 
+[tasks.check-contract]
+description = "Проверить расхождение OpenAPI и SDK с TypeSpec"
+run = "node scripts/check-contract-artifacts.mjs"
+
 [tasks.check]
-description = "Единая команда всех проверок: линтеры + тесты + сборка"
-depends = ["lint", "test", "test-frontend", "build-frontend"]
+description = "Единая команда всех проверок: линтеры + тесты + сборка + контракт"
+depends = ["lint", "test", "test-frontend", "build-frontend", "check-contract"]
 
 # --- Разработка ---
 
