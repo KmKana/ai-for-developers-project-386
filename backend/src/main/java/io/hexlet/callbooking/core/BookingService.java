@@ -3,7 +3,6 @@ package io.hexlet.callbooking.core;
 import io.hexlet.callbooking.api.dto.BookingDto;
 import io.hexlet.callbooking.api.dto.BookingInputDto;
 import io.hexlet.callbooking.store.Booking;
-import io.hexlet.callbooking.store.BookingOverlap;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
 import java.time.Duration;
@@ -89,11 +88,8 @@ public class BookingService {
       throw new ApiRequestException(409, "OFF_GRID", OFF_GRID_MESSAGE);
     }
 
-    // Предварительная проверка тем же правилом [start, end); финальная — под монитором store.
-    if (BookingOverlap.conflict(store.upcomingBookings(), startInstant, endInstant).isPresent()) {
-      throw slotConflict();
-    }
-
+    // Единственная проверка доступности выполняется под монитором хранилища вместе с созданием
+    // Записи: гонка между проверкой и добавлением исключена.
     var result =
         store.tryAddBooking(
             type.id(), type.name(), startInstant, endInstant, guestName, guestEmail);
