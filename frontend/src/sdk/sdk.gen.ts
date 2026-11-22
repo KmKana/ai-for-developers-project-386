@@ -67,7 +67,11 @@ export const apiCreateMeetingType = <ThrowOnError extends boolean = false>(optio
 };
 
 /**
- * Свободные слоты выбранного типа встречи на ближайшие 14 дней.
+ * Свободные слоты выбранного типа встречи в окне завтра + 13 дней по Asia/Almaty.
+ *
+ * Возможные ошибки 400 с общей моделью ApiError:
+ * VALIDATION_ERROR — параметр meetingTypeId не передан или некорректен;
+ * MEETING_TYPE_NOT_FOUND — тип встречи с таким идентификатором неизвестен.
  */
 export const apiListAvailableSlots = <ThrowOnError extends boolean = false>(options: Options<ApiListAvailableSlotsData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<ApiListAvailableSlotsResponses, ApiListAvailableSlotsErrors, ThrowOnError>({

@@ -5,7 +5,6 @@ import io.hexlet.callbooking.store.Booking;
 import io.hexlet.callbooking.store.BookingOverlap;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -23,12 +22,10 @@ public class SlotService {
 
   private final InMemoryStore store;
   private final BookingRules rules;
-  private final Clock clock;
 
-  public SlotService(InMemoryStore store, BookingRules rules, Clock clock) {
+  public SlotService(InMemoryStore store, BookingRules rules) {
     this.store = store;
     this.rules = rules;
-    this.clock = clock;
   }
 
   public List<SlotDto> availableSlots(String meetingTypeId) {
@@ -52,7 +49,7 @@ public class SlotService {
           startMinutes += BookingRules.STEP_MINUTES) {
         OffsetDateTime start =
             day.atTime(LocalTime.ofSecondOfDay(startMinutes * 60L))
-                .atZone(clock.getZone())
+                .atZone(BookingRules.ZONE)
                 .toOffsetDateTime();
         OffsetDateTime end = start.plus(Duration.ofMinutes(durationMinutes));
         if (BookingOverlap.conflict(existing, start.toInstant(), end.toInstant()).isEmpty()) {

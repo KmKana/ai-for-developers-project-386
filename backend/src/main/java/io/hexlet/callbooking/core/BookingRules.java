@@ -50,7 +50,7 @@ public class BookingRules {
 
   /** Первый день окна записи для текущего запроса: завтра по времени владельца. */
   public LocalDate currentWindowStart() {
-    return LocalDate.now(clock).plusDays(1);
+    return clock.instant().atZone(ZONE).toLocalDate().plusDays(1);
   }
 
   /** Последний день окна записи включительно, пересчитанный для текущего запроса. */
