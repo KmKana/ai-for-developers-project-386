@@ -69,7 +69,7 @@ run = "npm run build"
 [tasks.test-e2e]
 description = "Браузерный E2E с настоящими React и Spring Boot (не входит в check)"
 dir = "frontend"
-run = "npm run e2e"
+run = "npm run test:e2e"
 
 [tasks.check-contract]
 description = "Проверить расхождение OpenAPI и SDK с TypeSpec"
