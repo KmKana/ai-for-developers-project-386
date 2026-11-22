@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,21 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const artifacts = ['api/openapi/openapi.yaml', 'frontend/src/sdk'];
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const operations = [
+  'listMeetingTypes',
+  'createMeetingType',
+  'listAvailableSlots',
+  'createBooking',
+  'listBookings',
+];
+const errorCodes = [
+  'VALIDATION_ERROR',
+  'MEETING_TYPE_NOT_FOUND',
+  'SLOT_CONFLICT',
+  'OFF_GRID',
+  'OUTSIDE_WORKING_HOURS',
+  'OUT_OF_WINDOW',
+];
 
 function run(command, args, cwd = root) {
   const result =
@@ -52,6 +67,79 @@ function reportDrift(label, status) {
   console.error('Запустите npm run generate в api/tsp и npm run generate-sdk в frontend.');
 }
 
+function read(relativePath) {
+  return readFileSync(join(root, relativePath), 'utf8');
+}
+
+function countMatches(text, pattern, description) {
+  const count = text.match(pattern)?.length ?? 0;
+  if (count !== 1) {
+    throw new Error(`Ожидался ровно один ${description}, найдено: ${count}`);
+  }
+}
+
+function sdkNames(operationId) {
+  const pascal = operationId
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+  return { pascal, camel: pascal.charAt(0).toLowerCase() + pascal.slice(1) };
+}
+
+// Проверяем не только побайтовое совпадение артефактов с git, но и то, что все
+// операции и коды ошибок дошли до каждого звена цепочки TypeSpec -> OpenAPI -> SDK.
+function assertContractChain() {
+  const typeSpec = read('api/tsp/main.tsp');
+  const openApi = read(artifacts[0]);
+  const sdk = read('frontend/src/sdk/sdk.gen.ts');
+  const sdkTypes = read('frontend/src/sdk/types.gen.ts');
+
+  for (const operation of operations) {
+    countMatches(
+      typeSpec,
+      new RegExp(`^\\s*${operation}\\s*\\(`, 'm'),
+      `операции TypeSpec ${operation}`,
+    );
+  }
+
+  const operationIds = [...openApi.matchAll(/^\s+operationId:\s*(\S+)\s*$/gm)].map(
+    (match) => match[1],
+  );
+  const expectedOperationIds = operations.map((operation) => `Api_${operation}`);
+  if (
+    operationIds.length !== expectedOperationIds.length ||
+    expectedOperationIds.some((id) => !operationIds.includes(id))
+  ) {
+    throw new Error(
+      `Некорректный набор operationId в OpenAPI: ${operationIds.join(', ')}; ожидалось: ${expectedOperationIds.join(', ')}`,
+    );
+  }
+
+  for (const operationId of expectedOperationIds) {
+    const { pascal, camel } = sdkNames(operationId);
+    countMatches(sdk, new RegExp(`export const ${camel}\\s*=`), `функция SDK ${camel}`);
+    countMatches(
+      sdkTypes,
+      new RegExp(`export type ${pascal}Data\\s*=`),
+      `тип SDK ${pascal}Data`,
+    );
+    countMatches(
+      sdkTypes,
+      new RegExp(`export type ${pascal}Responses\\s*=`),
+      `тип SDK ${pascal}Responses`,
+    );
+  }
+
+  for (const code of errorCodes) {
+    countMatches(typeSpec, new RegExp(`^\\s+${code}:\\s*"${code}"`, 'm'), `код TypeSpec ${code}`);
+    countMatches(openApi, new RegExp(`^\\s+- ${code}$`, 'm'), `код OpenAPI ${code}`);
+  }
+  const sdkErrorCode = sdkTypes.match(/export type ApiErrorCode\s*=\s*([^;]+);/);
+  if (!sdkErrorCode || errorCodes.some((code) => !sdkErrorCode[1].includes(`'${code}'`))) {
+    throw new Error(`Некорректный ApiErrorCode в SDK: ${sdkErrorCode?.[1] ?? 'не найден'}`);
+  }
+}
+
 let backup = null;
 let failed = false;
 
@@ -71,6 +159,7 @@ try {
 
   run(npmCommand, ['run', 'generate'], join(root, 'api/tsp'));
   run(npmCommand, ['run', 'generate-sdk'], join(root, 'frontend'));
+  assertContractChain();
 
   const after = artifactStatus();
   if (after) {
@@ -99,4 +188,6 @@ if (failed) {
   process.exit(1);
 }
 
-console.log('OK: OpenAPI и SDK соответствуют TypeSpec и закоммиченным артефактам.');
+console.log(
+  `OK: ${operations.length} операций и ${errorCodes.length} кодов ошибок прослеживаются в TypeSpec, OpenAPI и SDK; сгенерированные артефакты соответствуют git.`,
+);
