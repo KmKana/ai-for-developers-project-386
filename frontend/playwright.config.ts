@@ -17,7 +17,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: frontendUrl,
-    // Стационарный Chrome уже установлен: скачивание браузера не нужно.
+    // Используем установленный Chrome, чтобы не скачивать браузер Playwright.
     channel: 'chrome',
     headless: true,
     trace: 'retain-on-failure',
