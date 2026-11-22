@@ -32,17 +32,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booking'
         '400':
-          description: Ответ об ошибке.
+          description: 'Ответ об ошибке 400 VALIDATION_ERROR: данные запроса не прошли проверку.'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ValidationError'
+                $ref: '#/components/schemas/ApiError'
         '409':
           description: 'Ответ при конфликте: время недоступно или уже занято.'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConflictError'
+                $ref: '#/components/schemas/ApiError'
       requestBody:
         required: true
         content:
@@ -88,11 +88,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/MeetingType'
         '400':
-          description: Ответ об ошибке.
+          description: 'Ответ об ошибке 400 VALIDATION_ERROR: данные запроса не прошли проверку.'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ValidationError'
+                $ref: '#/components/schemas/ApiError'
       requestBody:
         required: true
         content:
@@ -120,13 +120,32 @@ paths:
                 items:
                   $ref: '#/components/schemas/Slot'
         '400':
-          description: Ответ об ошибке.
+          description: 'Ответ об ошибке 400 VALIDATION_ERROR: данные запроса не прошли проверку.'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ValidationError'
+                $ref: '#/components/schemas/ApiError'
 components:
   schemas:
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: 'Машинный код ошибки: VALIDATION_ERROR (400) и другие коды операций.'
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Понятное описание ошибки, которое показывает интерфейс.
+      description: |-
+        Единый формат ошибки API: машинный код и понятное сообщение.
+
+        Код — строка, чтобы контракт можно было расширять новыми ошибками,
+        не меняя форму ответа. Для некорректных данных используется VALIDATION_ERROR
+        со статусом 400; остальные коды документируются в следующих операциях.
     Booking:
       type: object
       required:
@@ -193,19 +212,6 @@ components:
           pattern: ^[^@\s]+@[^@\s]+\.[^@\s]+$
           description: Email гостя.
       description: Данные для записи на слот.
-    ConflictError:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          description: 'Машинный код ошибки: SLOT_TAKEN, OVERLAP, OFF_GRID, OUTSIDE_WORKING_HOURS, OUT_OF_WINDOW.'
-        message:
-          type: string
-          description: Понятное описание ошибки.
-      description: 'Ответ при конфликте: время недоступно или уже занято.'
     MeetingType:
       type: object
       required:
@@ -269,19 +275,6 @@ components:
           format: date-time
           description: 'Конец слота: начало плюс длительность типа встречи.'
       description: Свободный интервал, который можно занять.
-    ValidationError:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          description: Машинный код ошибки, например VALIDATION_ERROR, MEETING_TYPE_NOT_FOUND.
-        message:
-          type: string
-          description: Понятное описание ошибки.
-      description: Ответ об ошибке.
 servers:
   - url: http://localhost:8080
     description: Локальный сервер разработки
