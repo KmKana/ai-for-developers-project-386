@@ -245,7 +245,7 @@ class ApiBookingFlowTest {
                             "guestEmail",
                             "guest2@example.com"))))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("SLOT_TAKEN"));
+        .andExpect(jsonPath("$.code").value("SLOT_CONFLICT"));
   }
 
   @Test
@@ -287,7 +287,7 @@ class ApiBookingFlowTest {
                             "guestEmail",
                             "guest@example.com"))))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("OVERLAP"));
+        .andExpect(jsonPath("$.code").value("SLOT_CONFLICT"));
 
     // 09:30–10:00 примыкает к началу — разрешено.
     mvc.perform(
