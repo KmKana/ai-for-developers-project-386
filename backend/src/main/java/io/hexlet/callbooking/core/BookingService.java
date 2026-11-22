@@ -5,6 +5,7 @@ import io.hexlet.callbooking.api.dto.BookingInputDto;
 import io.hexlet.callbooking.store.Booking;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -21,9 +22,13 @@ public class BookingService {
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
   private final InMemoryStore store;
+  private final BookingRules rules;
+  private final Clock clock;
 
-  public BookingService(InMemoryStore store) {
+  public BookingService(InMemoryStore store, BookingRules rules, Clock clock) {
     this.store = store;
+    this.rules = rules;
+    this.clock = clock;
   }
 
   public BookingDto book(BookingInputDto input) {
@@ -52,21 +57,21 @@ public class BookingService {
     long durationMinutes = type.durationMinutes();
     Instant endInstant = startInstant.plus(Duration.ofMinutes(durationMinutes));
 
-    ZonedDateTime localStart = startInstant.atZone(BookingRules.ZONE);
+    ZonedDateTime localStart = startInstant.atZone(clock.getZone());
     LocalDate date = localStart.toLocalDate();
     LocalTime time = localStart.toLocalTime();
     int startMinutes = time.getHour() * 60 + time.getMinute();
 
-    if (date.isBefore(BookingRules.windowStart())
-        || date.isAfter(BookingRules.windowEndInclusive())) {
+    if (date.isBefore(rules.currentWindowStart())
+        || date.isAfter(rules.currentWindowEndInclusive())) {
       throw new ApiRequestException(
           409,
           "OUT_OF_WINDOW",
           "Дата вне окна записи на %d дней (с %s по %s)"
               .formatted(
                   BookingRules.WINDOW_DAYS,
-                  BookingRules.windowStart(),
-                  BookingRules.windowEndInclusive()));
+                  rules.currentWindowStart(),
+                  rules.currentWindowEndInclusive()));
     }
     if (!BookingRules.WORK_DAYS.contains(date.getDayOfWeek())) {
       throw new ApiRequestException(
@@ -78,7 +83,7 @@ public class BookingService {
           409,
           "OUTSIDE_WORKING_HOURS",
           "Встреча должна целиком помещаться в рабочие часы 09:00–18:00 "
-              + BookingRules.ZONE.getId());
+              + clock.getZone().getId());
     }
     boolean onGrid =
         (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
@@ -103,16 +108,16 @@ public class BookingService {
   }
 
   public java.util.List<BookingDto> upcoming() {
-    return store.upcomingBookings().stream().map(BookingService::toDto).toList();
+    return store.upcomingBookings().stream().map(this::toDto).toList();
   }
 
-  private static BookingDto toDto(Booking booking) {
+  private BookingDto toDto(Booking booking) {
     return new BookingDto(
         booking.id(),
         booking.meetingTypeId(),
         booking.meetingTypeName(),
-        OffsetDateTime.ofInstant(booking.start(), BookingRules.ZONE),
-        OffsetDateTime.ofInstant(booking.end(), BookingRules.ZONE),
+        OffsetDateTime.ofInstant(booking.start(), clock.getZone()),
+        OffsetDateTime.ofInstant(booking.end(), clock.getZone()),
         booking.guestName(),
         booking.guestEmail(),
         booking.createdAt());

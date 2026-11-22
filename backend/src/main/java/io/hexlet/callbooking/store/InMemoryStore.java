@@ -1,6 +1,6 @@
 package io.hexlet.callbooking.store;
 
-import io.hexlet.callbooking.core.BookingRules;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -25,6 +25,12 @@ public class InMemoryStore {
   private final Map<String, MeetingType> meetingTypes = new LinkedHashMap<>();
 
   private final List<Booking> bookings = new ArrayList<>();
+
+  private final Clock clock;
+
+  public InMemoryStore(Clock clock) {
+    this.clock = clock;
+  }
 
   public synchronized MeetingType addMeetingType(
       String name, String description, int durationMinutes) {
@@ -69,14 +75,14 @@ public class InMemoryStore {
             end,
             guestName,
             guestEmail,
-            OffsetDateTime.now(BookingRules.ZONE));
+            OffsetDateTime.ofInstant(clock.instant(), clock.getZone()));
     bookings.add(created);
     return new AddBookingResult(created, null);
   }
 
   /** Предстоящие встречи по всем типам, отсортированные по времени начала. */
   public synchronized List<Booking> upcomingBookings() {
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     return bookings.stream()
         .filter(b -> !b.start().isBefore(now))
         .sorted(java.util.Comparator.comparing(Booking::start))

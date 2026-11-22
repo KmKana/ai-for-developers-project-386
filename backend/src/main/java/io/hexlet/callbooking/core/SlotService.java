@@ -3,6 +3,7 @@ package io.hexlet.callbooking.core;
 import io.hexlet.callbooking.api.dto.SlotDto;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -19,9 +20,13 @@ import org.springframework.stereotype.Service;
 public class SlotService {
 
   private final InMemoryStore store;
+  private final BookingRules rules;
+  private final Clock clock;
 
-  public SlotService(InMemoryStore store) {
+  public SlotService(InMemoryStore store, BookingRules rules, Clock clock) {
     this.store = store;
+    this.rules = rules;
+    this.clock = clock;
   }
 
   public List<SlotDto> availableSlots(String meetingTypeId) {
@@ -31,8 +36,8 @@ public class SlotService {
           400, "MEETING_TYPE_NOT_FOUND", "Тип встречи не найден: " + meetingTypeId);
     }
     long durationMinutes = type.durationMinutes();
-    LocalDate from = BookingRules.windowStart();
-    LocalDate to = BookingRules.windowEndInclusive();
+    LocalDate from = rules.currentWindowStart();
+    LocalDate to = rules.currentWindowEndInclusive();
     List<SlotDto> slots = new ArrayList<>();
     for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
       if (!BookingRules.WORK_DAYS.contains(day.getDayOfWeek())) {
@@ -43,7 +48,7 @@ public class SlotService {
           startMinutes += BookingRules.STEP_MINUTES) {
         OffsetDateTime start =
             day.atTime(LocalTime.ofSecondOfDay(startMinutes * 60L))
-                .atZone(BookingRules.ZONE)
+                .atZone(clock.getZone())
                 .toOffsetDateTime();
         OffsetDateTime end = start.plus(Duration.ofMinutes(durationMinutes));
         if (store.upcomingBookings().stream()
