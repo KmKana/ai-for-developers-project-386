@@ -155,7 +155,8 @@ class BookingConflictApiTest {
   }
 
   private static String iso(int hour, int minute) {
-    return FIRST_DAY.atTime(LocalTime.of(hour, minute))
+    return FIRST_DAY
+        .atTime(LocalTime.of(hour, minute))
         .atZone(FixedClockConfig.OWNER_ZONE)
         .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
   }

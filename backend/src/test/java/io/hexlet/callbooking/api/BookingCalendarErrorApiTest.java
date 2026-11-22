@@ -64,9 +64,11 @@ class BookingCalendarErrorApiTest {
     String typeId = createType();
 
     // Сегодня недоступно: окно начинается завтра.
-    expectConflict(booking(typeId, iso(2026, 3, 10, 10, 0)), "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
+    expectConflict(
+        booking(typeId, iso(2026, 3, 10, 10, 0)), "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
     // 15-й день тоже недоступен: окно заканчивается 24 марта.
-    expectConflict(booking(typeId, iso(2026, 3, 25, 10, 0)), "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
+    expectConflict(
+        booking(typeId, iso(2026, 3, 25, 10, 0)), "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
   }
 
   private void expectConflict(String body, String code, String message) throws Exception {
@@ -79,10 +81,14 @@ class BookingCalendarErrorApiTest {
   private String booking(String typeId, String start) throws Exception {
     return om.writeValueAsString(
         Map.of(
-            "meetingTypeId", typeId,
-            "start", start,
-            "guestName", "Гость",
-            "guestEmail", "guest@example.com"));
+            "meetingTypeId",
+            typeId,
+            "start",
+            start,
+            "guestName",
+            "Гость",
+            "guestEmail",
+            "guest@example.com"));
   }
 
   private String createType() throws Exception {

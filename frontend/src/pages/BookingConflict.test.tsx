@@ -2,11 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  apiCreateBooking,
-  apiListAvailableSlots,
-  apiListMeetingTypes,
-} from '../sdk';
+import { apiCreateBooking, apiListAvailableSlots, apiListMeetingTypes } from '../sdk';
 import type { ApiError, MeetingType, Slot } from '../sdk';
 import BookingPage from './BookingPage';
 
@@ -65,12 +61,13 @@ function mockSlotPages(...pages: Slot[][]) {
   for (const page of pages) {
     mocked.mockResolvedValueOnce(response(page, 'http://localhost/api/slots'));
   }
-  mocked.mockResolvedValue(response(pages.at(-1) ?? [], 'http://localhost/api/slots'));
+  mocked.mockResolvedValue(response(pages[pages.length - 1] ?? [], 'http://localhost/api/slots'));
 }
 
 async function chooseSlotAndSubmit() {
   expect(await screen.findByRole('heading', { name: 'Знакомство' })).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: '09:00' }));
+  // День выбирается эффектом после первого рендера — ждём появления кнопки времени.
+  fireEvent.click(await screen.findByRole('button', { name: '09:00' }));
   fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Гость' } });
   fireEvent.change(screen.getByLabelText('Email'), {
     target: { value: 'guest@example.com' },
@@ -110,9 +107,11 @@ describe('Обработка конфликтов на Странице запи
     await chooseSlotAndSubmit();
 
     expect(await screen.findByText(SLOT_CONFLICT_MESSAGE)).toBeTruthy();
-    await waitFor(() => expect(apiListAvailableSlots).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole('button', { name: '09:00' })).toBeNull();
-    expect(screen.getByRole('button', { name: '10:30' })).toBeTruthy();
+    await waitFor(() => {
+      expect(apiListAvailableSlots).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('button', { name: '09:00' })).toBeNull();
+      expect(screen.getByRole('button', { name: '10:30' })).toBeTruthy();
+    });
   });
 
   it.each([
