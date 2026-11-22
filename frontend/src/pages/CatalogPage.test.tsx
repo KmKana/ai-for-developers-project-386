@@ -30,7 +30,12 @@ afterEach(() => {
 
 describe('Каталог типов встреч', () => {
   it('показывает данные из ответа сгенерированного SDK', async () => {
-    vi.mocked(apiListMeetingTypes).mockResolvedValue({ data: catalog, error: undefined });
+    vi.mocked(apiListMeetingTypes).mockResolvedValue({
+      data: catalog,
+      error: undefined,
+      request: new Request('http://localhost/api/meeting-types'),
+      response: new Response(JSON.stringify(catalog), { status: 200 }),
+    });
 
     render(
       <MemoryRouter>
