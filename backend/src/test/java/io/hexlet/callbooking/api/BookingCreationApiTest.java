@@ -2,7 +2,6 @@ package io.hexlet.callbooking.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.oneOf;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -234,8 +233,8 @@ class BookingCreationApiTest {
 
     mvc.perform(post("/api/bookings").contentType(APPLICATION_JSON).content(body))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value(oneOf("SLOT_TAKEN", "OVERLAP", "SLOT_CONFLICT")))
-        .andExpect(jsonPath("$.message").isNotEmpty());
+        .andExpect(jsonPath("$.code").value("SLOT_CONFLICT"))
+        .andExpect(jsonPath("$.message").value("Выбранное время уже занято. Выберите другой слот"));
 
     mvc.perform(get("/api/bookings"))
         .andExpect(status().isOk())
