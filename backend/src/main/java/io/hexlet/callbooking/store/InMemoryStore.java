@@ -59,11 +59,7 @@ public class InMemoryStore {
       Instant end,
       String guestName,
       String guestEmail) {
-    Booking conflict =
-        bookings.stream()
-            .filter(b -> b.start().isBefore(end) && start.isBefore(b.end()))
-            .findFirst()
-            .orElse(null);
+    Booking conflict = BookingOverlap.conflict(bookings, start, end).orElse(null);
     if (conflict != null) {
       return new AddBookingResult(null, conflict);
     }

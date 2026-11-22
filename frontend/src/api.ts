@@ -20,10 +20,19 @@ import type {
 // в проде — тот же сервер. Абсолютный адрес из контракта не нужен.
 client.setConfig({ baseUrl: '' });
 
-/** Коды 409-ответов: время недоступно. */
-const CONFLICT_CODES = new Set([
-  'SLOT_TAKEN',
-  'OVERLAP',
+/** Все коды контракта: только их сообщения можно показывать пользователю. */
+const KNOWN_CODES = new Set<ApiError['code']>([
+  'VALIDATION_ERROR',
+  'MEETING_TYPE_NOT_FOUND',
+  'SLOT_CONFLICT',
+  'OFF_GRID',
+  'OUTSIDE_WORKING_HOURS',
+  'OUT_OF_WINDOW',
+]);
+
+/** Коды 409-ответов: время недоступно, нужно обновить Слоты. */
+const CONFLICT_CODES = new Set<ApiError['code']>([
+  'SLOT_CONFLICT',
   'OFF_GRID',
   'OUTSIDE_WORKING_HOURS',
   'OUT_OF_WINDOW',
@@ -42,8 +51,9 @@ export class ApiCallError extends Error {
   }
 }
 
+/** Сценарий выбирается по коду: служебный текст неизвестного кода не показываем. */
 export function failureMessage(failure?: ApiFailure | null): string {
-  if (failure && failure.message) {
+  if (failure?.code && KNOWN_CODES.has(failure.code) && failure.message) {
     return failure.message;
   }
   return 'Что-то пошло не так. Попробуйте ещё раз.';

@@ -139,8 +139,9 @@ components:
         - message
       properties:
         code:
-          type: string
-          description: 'Машинный код ошибки: VALIDATION_ERROR (400) и другие коды операций.'
+          allOf:
+            - $ref: '#/components/schemas/ApiErrorCode'
+          description: Машинный код ошибки из ApiErrorCode.
           example: VALIDATION_ERROR
         message:
           type: string
@@ -148,9 +149,23 @@ components:
       description: |-
         Единый формат ошибки API: машинный код и понятное сообщение.
 
-        Код — строка, чтобы контракт можно было расширять новыми ошибками,
-        не меняя форму ответа. Для некорректных данных используется VALIDATION_ERROR
-        со статусом 400; остальные коды документируются в следующих операциях.
+        `SLOT_CONFLICT` — единственный код для любого пересечения интервалов
+        [start, end), независимо от совпадения старта и от Типа встречи.
+        Сообщения календарных кодов 409 фиксированы:
+        - SLOT_CONFLICT: «Выбранное время уже занято. Выберите другой слот»;
+        - OFF_GRID: «Начало встречи должно быть на 30-минутной сетке. Выберите другое время.»;
+        - OUTSIDE_WORKING_HOURS: «Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.»;
+        - OUT_OF_WINDOW: «Запись доступна на ближайшие 14 дней. Выберите другую дату.».
+    ApiErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - MEETING_TYPE_NOT_FOUND
+        - SLOT_CONFLICT
+        - OFF_GRID
+        - OUTSIDE_WORKING_HOURS
+        - OUT_OF_WINDOW
+      description: 'Все коды ошибок API: клиент выбирает сценарий по коду, а текст берёт из message.'
     Booking:
       type: object
       required:

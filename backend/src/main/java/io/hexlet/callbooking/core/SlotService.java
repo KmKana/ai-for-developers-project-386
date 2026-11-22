@@ -1,6 +1,8 @@
 package io.hexlet.callbooking.core;
 
 import io.hexlet.callbooking.api.dto.SlotDto;
+import io.hexlet.callbooking.store.Booking;
+import io.hexlet.callbooking.store.BookingOverlap;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
 import java.time.Duration;
@@ -36,6 +38,8 @@ public class SlotService {
     LocalDate from = rules.currentWindowStart();
     LocalDate to = rules.currentWindowEndInclusive();
     List<SlotDto> slots = new ArrayList<>();
+    // Снимок под монитором хранилища: просмотр Слотов ничего не бронирует.
+    List<Booking> existing = store.upcomingBookings();
     for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
       if (!BookingRules.WORK_DAYS.contains(day.getDayOfWeek())) {
         continue;
@@ -48,9 +52,7 @@ public class SlotService {
                 .atZone(BookingRules.ZONE)
                 .toOffsetDateTime();
         OffsetDateTime end = start.plus(Duration.ofMinutes(durationMinutes));
-        if (store.upcomingBookings().stream()
-            .noneMatch(
-                b -> b.start().isBefore(end.toInstant()) && start.toInstant().isBefore(b.end()))) {
+        if (BookingOverlap.conflict(existing, start.toInstant(), end.toInstant()).isEmpty()) {
           slots.add(new SlotDto(start, end));
         }
       }
