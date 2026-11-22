@@ -6,13 +6,16 @@ import static java.time.DayOfWeek.THURSDAY;
 import static java.time.DayOfWeek.TUESDAY;
 import static java.time.DayOfWeek.WEDNESDAY;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Set;
+import org.springframework.stereotype.Component;
 
 /** Правила записи владельца. Зафиксированы в спецификации API (api/tsp/main.tsp) и в README.md. */
-public final class BookingRules {
+@Component
+public class BookingRules {
 
   /** Часовой пояс владельца. */
   public static final ZoneId ZONE = ZoneId.of("Asia/Almaty");
@@ -39,14 +42,28 @@ public final class BookingRules {
   public static final Set<DayOfWeek> WORK_DAYS =
       Set.of(MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY);
 
-  private BookingRules() {}
+  private final Clock clock;
 
-  /** Первый день окна записи: завтрашний день по времени владельца. */
+  public BookingRules(Clock clock) {
+    this.clock = clock;
+  }
+
+  /** Первый день окна записи для текущего запроса: завтра по времени владельца. */
+  public LocalDate currentWindowStart() {
+    return LocalDate.now(clock).plusDays(1);
+  }
+
+  /** Последний день окна записи включительно, пересчитанный для текущего запроса. */
+  public LocalDate currentWindowEndInclusive() {
+    return currentWindowStart().plusDays(WINDOW_DAYS - 1);
+  }
+
+  /** Первый день окна по системным часам. Совместимость с тестами без внедрения часов. */
   public static LocalDate windowStart() {
     return LocalDate.now(ZONE).plusDays(1);
   }
 
-  /** Последний день окна записи включительно (14-й день от завтра). */
+  /** Последний день окна по системным часам. Совместимость с тестами без внедрения часов. */
   public static LocalDate windowEndInclusive() {
     return windowStart().plusDays(WINDOW_DAYS - 1);
   }
