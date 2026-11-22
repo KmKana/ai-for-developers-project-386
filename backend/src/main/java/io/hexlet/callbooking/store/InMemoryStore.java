@@ -1,5 +1,6 @@
 package io.hexlet.callbooking.store;
 
+import io.hexlet.callbooking.core.BookingRules;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -75,7 +76,7 @@ public class InMemoryStore {
             end,
             guestName,
             guestEmail,
-            OffsetDateTime.ofInstant(clock.instant(), clock.getZone()));
+            OffsetDateTime.ofInstant(clock.instant(), BookingRules.ZONE));
     bookings.add(created);
     return new AddBookingResult(created, null);
   }
