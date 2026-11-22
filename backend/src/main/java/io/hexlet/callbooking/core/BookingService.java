@@ -5,7 +5,6 @@ import io.hexlet.callbooking.api.dto.BookingInputDto;
 import io.hexlet.callbooking.store.Booking;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,12 +22,10 @@ public class BookingService {
 
   private final InMemoryStore store;
   private final BookingRules rules;
-  private final Clock clock;
 
-  public BookingService(InMemoryStore store, BookingRules rules, Clock clock) {
+  public BookingService(InMemoryStore store, BookingRules rules) {
     this.store = store;
     this.rules = rules;
-    this.clock = clock;
   }
 
   public BookingDto book(BookingInputDto input) {
@@ -57,7 +54,7 @@ public class BookingService {
     long durationMinutes = type.durationMinutes();
     Instant endInstant = startInstant.plus(Duration.ofMinutes(durationMinutes));
 
-    ZonedDateTime localStart = startInstant.atZone(clock.getZone());
+    ZonedDateTime localStart = startInstant.atZone(BookingRules.ZONE);
     LocalDate date = localStart.toLocalDate();
     LocalTime time = localStart.toLocalTime();
     int startMinutes = time.getHour() * 60 + time.getMinute();
@@ -83,7 +80,7 @@ public class BookingService {
           409,
           "OUTSIDE_WORKING_HOURS",
           "Встреча должна целиком помещаться в рабочие часы 09:00–18:00 "
-              + clock.getZone().getId());
+              + BookingRules.ZONE.getId());
     }
     boolean onGrid =
         (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
@@ -116,8 +113,8 @@ public class BookingService {
         booking.id(),
         booking.meetingTypeId(),
         booking.meetingTypeName(),
-        OffsetDateTime.ofInstant(booking.start(), clock.getZone()),
-        OffsetDateTime.ofInstant(booking.end(), clock.getZone()),
+        OffsetDateTime.ofInstant(booking.start(), BookingRules.ZONE),
+        OffsetDateTime.ofInstant(booking.end(), BookingRules.ZONE),
         booking.guestName(),
         booking.guestEmail(),
         booking.createdAt());
