@@ -11,6 +11,7 @@
 - `mise run install` — установка зависимостей бэкенда и фронтенда (перед этим раз `mise install`).
 - `mise run backend` / `mise run frontend` — dev-серверы (бэкенд :8080, фронтенд :5173); те же процессы можно держать фоном через daemons (`mise daemons start|stop|status`).
 - `mise run hooks` — включить pre-commit (прогоняет `mise run lint`), скрипты в `.githooks/`.
+- `npm run generate` (в `api/tsp`) — TypeSpec → OpenAPI: `api/openapi/openapi.yaml`; затем `npm run generate-sdk` (в `frontend/`) — OpenAPI → SDK: `frontend/src/sdk`.
 
 ## Устройство
 
@@ -21,8 +22,12 @@
 
 ## Правила
 
-- Коммиты по Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:` и т.д. — короткое описание в императиве.
+- Коммиты по Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:` и т.д. — короткое описание в императиве. Каждый коммит реализации должен соответствовать формату Conventional Commits и содержать номер GitHub Issue, к которому относится изменение.
+  - `feat: implement booking creation (#16)`
+  - `fix: prevent overlapping bookings (#18)`
+  - `test: add concurrency tests (#19)`
 - Контракт меняется только через TypeSpec: правим `main.tsp`, регенерируем OpenAPI и SDK, бэкенд правим под контракт.
+- React-код обращается к API только через сгенерированный SDK из `frontend/src/sdk`: компоненты и хуки не должны дублировать URL и типы ответов вручную, прямые `fetch`/`axios` к `/api` не использовать.
 - Бронь слота атомарна (`InMemoryStore.tryAddBooking` под монитором): не ослаблять синхронизацию; тесты на одновременные запросы (`BookingConcurrencyTest`) должны оставаться зелёными.
 - Правила записи владельца (часовой пояс, рабочие часы, окно 14 дней, сетка 30 минут) зафиксированы в `BookingRules` и в описании контракта — менять согласованно в обоих местах.
 
