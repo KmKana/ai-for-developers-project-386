@@ -5,7 +5,7 @@
 
 ## Команды (окружение через mise: https://mise.jdx.dev)
 
-- `mise run check` — все проверки: линтеры (Spotless для Java, ESLint + Prettier для фронтенда), тесты бэкенда (JUnit 5) и сборка фронтенда с проверкой типов. В CI проверки запускаются через `.github/workflows/hexlet-check.yml` (`hexlet/project-action`; файл Hexlet, не редактировать).
+- `mise run check` — все проверки: линтеры (Spotless для Java, ESLint + Prettier для фронтенда), тесты бэкенда (JUnit 5), тесты фронтенда (Vitest) и сборка фронтенда с проверкой типов. В CI проверки запускаются через `.github/workflows/hexlet-check.yml` (`hexlet/project-action`; файл Hexlet, не редактировать).
 - `mise run lint` — только линтеры.
 - `mise run test` — только тесты бэкенда.
 - `mise run install` — установка зависимостей бэкенда и фронтенда (перед этим раз `mise install`).

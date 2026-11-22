@@ -2,8 +2,10 @@ import { NavLink, Route, Routes } from 'react-router-dom';
 
 import BookingsPage from './pages/BookingsPage';
 import BookingPage from './pages/BookingPage';
+import BookingStubPage from './pages/BookingStubPage';
 import CatalogPage from './pages/CatalogPage';
 import EventTypesPage from './pages/EventTypesPage';
+import HomePage from './pages/HomePage';
 
 function navClass({ isActive }: { isActive: boolean }) {
   return isActive ? 'nav-link active' : 'nav-link';
@@ -18,7 +20,7 @@ export default function App() {
           Запись на звонок
         </NavLink>
         <nav className="nav">
-          <NavLink to="/" end className={navClass}>
+          <NavLink to="/catalog" end className={navClass}>
             Каталог
           </NavLink>
           <span className="nav-divider" aria-hidden="true" />
@@ -34,7 +36,9 @@ export default function App() {
 
       <main className="content">
         <Routes>
-          <Route path="/" element={<CatalogPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/booking" element={<BookingStubPage />} />
           <Route path="/book/:id" element={<BookingPage />} />
           <Route path="/event-types" element={<EventTypesPage />} />
           <Route path="/bookings" element={<BookingsPage />} />

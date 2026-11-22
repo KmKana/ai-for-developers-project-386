@@ -12,7 +12,7 @@ maven = "3.9.6"
 node = "24.22.3"
 # Менеджер процессов для [daemons]; если mise скажет, что версии нет,
 # посмотрите актуальный тег на https://github.com/jdx/pitchfork/releases
-pitchfork = "0.36"
+pitchfork = "2.36.0"
 
 # --- Установка ---
 
@@ -51,6 +51,11 @@ description = "Тесты бэкенда (JUnit 5), включая дымово�
 dir = "backend"
 run = "mvn -B test"
 
+[tasks.test-frontend]
+description = "Тесты фронтенда (Vitest)"
+dir = "frontend"
+run = "npm run test"
+
 [tasks.build-frontend]
 description = "Проверка типов и сборка фронтенда"
 dir = "frontend"
@@ -58,7 +63,7 @@ run = "npm run build"
 
 [tasks.check]
 description = "Единая команда всех проверок: линтеры + тесты + сборка"
-depends = ["lint", "test", "build-frontend"]
+depends = ["lint", "test", "test-frontend", "build-frontend"]
 
 # --- Разработка ---
 

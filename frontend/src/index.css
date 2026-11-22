@@ -237,6 +237,10 @@ h3 {
   align-self: flex-start;
 }
 
+.home-cta {
+  margin-top: 20px;
+}
+
 .btn:hover {
   background: var(--accent-hover);
 }
