@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // В dev-режиме запросы /api проксируются на бэкенд (порт 8080).
 // E2E поднимает свой бэкенд на отдельном порту и задаёт цель через env.
@@ -15,5 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Playwright-спеки запускаются отдельной командой, Vitest их не собирает.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });
