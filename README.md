@@ -51,7 +51,7 @@ cd ../../frontend && npm install && npm run generate-sdk   # OpenAPI -> SDK: fro
 ## Каркас, проверки и CI
 
 - Версии инструментов зафиксированы в `mise.toml` ([mise](https://mise.jdx.dev): Java 21, Maven 3.9.6, Node 24). После установки mise: `mise install` и `mise run install`.
-- Одна команда всех проверок — **`mise run check`**: Spotless (формат Java), ESLint и Prettier (фронтенд), тесты бэкенда и сборка фронтенда с проверкой типов. GitHub Actions прогоняет эту же команду на каждый push (`.github/workflows/ci.yml`).
+- Одна команда всех проверок — **`mise run check`**: Spotless (формат Java), ESLint и Prettier (фронтенд), тесты бэкенда и сборка фронтенда с проверкой типов. Проверки в CI на каждый push запускаются через `.github/workflows/hexlet-check.yml` (`hexlet/project-action`; файл создан Hexlet и не редактируется).
 - Дымовой тест запуска приложения — `SmokeTest` (бэкенд поднимается и отвечает 200).
 - Git-хуки: `mise run hooks` включает pre-commit из `.githooks/` (прогон линтеров перед коммитом).
 - Dev-серверы можно держать фоном через daemons mise (`mise run backend` / `mise run frontend`, либо `mise daemons start backend frontend`) — нужен experimental-режим и pitchfork, см. `mise.toml`.
