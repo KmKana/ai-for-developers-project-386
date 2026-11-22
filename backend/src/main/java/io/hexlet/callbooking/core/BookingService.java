@@ -3,6 +3,7 @@ package io.hexlet.callbooking.core;
 import io.hexlet.callbooking.api.dto.BookingDto;
 import io.hexlet.callbooking.api.dto.BookingInputDto;
 import io.hexlet.callbooking.store.Booking;
+import io.hexlet.callbooking.store.BookingOverlap;
 import io.hexlet.callbooking.store.InMemoryStore;
 import io.hexlet.callbooking.store.MeetingType;
 import java.time.Duration;
@@ -19,6 +20,16 @@ import org.springframework.stereotype.Service;
 public class BookingService {
 
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+  private static final String SLOT_CONFLICT_CODE = "SLOT_CONFLICT";
+  private static final String SLOT_CONFLICT_MESSAGE =
+      "Выбранное время уже занято. Выберите другой слот";
+  private static final String OFF_GRID_MESSAGE =
+      "Начало встречи должно быть на 30-минутной сетке. Выберите другое время.";
+  private static final String OUTSIDE_WORKING_HOURS_MESSAGE =
+      "Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.";
+  private static final String OUT_OF_WINDOW_MESSAGE =
+      "Запись доступна на ближайшие 14 дней. Выберите другую дату.";
 
   private final InMemoryStore store;
   private final BookingRules rules;
@@ -61,47 +72,39 @@ public class BookingService {
 
     if (date.isBefore(rules.currentWindowStart())
         || date.isAfter(rules.currentWindowEndInclusive())) {
-      throw new ApiRequestException(
-          409,
-          "OUT_OF_WINDOW",
-          "Дата вне окна записи на %d дней (с %s по %s)"
-              .formatted(
-                  BookingRules.WINDOW_DAYS,
-                  rules.currentWindowStart(),
-                  rules.currentWindowEndInclusive()));
+      throw new ApiRequestException(409, "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
     }
     if (!BookingRules.WORK_DAYS.contains(date.getDayOfWeek())) {
-      throw new ApiRequestException(
-          409, "OUTSIDE_WORKING_HOURS", "Выбран нерабочий день владельца: " + date.getDayOfWeek());
+      throw new ApiRequestException(409, "OUTSIDE_WORKING_HOURS", OUTSIDE_WORKING_HOURS_MESSAGE);
     }
     if (startMinutes < BookingRules.WORK_START_MINUTES
         || startMinutes + durationMinutes > BookingRules.WORK_END_MINUTES) {
-      throw new ApiRequestException(
-          409,
-          "OUTSIDE_WORKING_HOURS",
-          "Встреча должна целиком помещаться в рабочие часы 09:00–18:00 "
-              + BookingRules.ZONE.getId());
+      throw new ApiRequestException(409, "OUTSIDE_WORKING_HOURS", OUTSIDE_WORKING_HOURS_MESSAGE);
     }
     boolean onGrid =
         (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
             && time.getSecond() == 0
             && time.getNano() == 0;
     if (!onGrid) {
-      throw new ApiRequestException(
-          409, "OFF_GRID", "Начало встречи должно быть на 30-минутной сетке");
+      throw new ApiRequestException(409, "OFF_GRID", OFF_GRID_MESSAGE);
+    }
+
+    // Предварительная проверка тем же правилом [start, end); финальная — под монитором store.
+    if (BookingOverlap.conflict(store.upcomingBookings(), startInstant, endInstant).isPresent()) {
+      throw slotConflict();
     }
 
     var result =
         store.tryAddBooking(
             type.id(), type.name(), startInstant, endInstant, guestName, guestEmail);
     if (result.conflict() != null) {
-      boolean sameStart = result.conflict().start().equals(startInstant);
-      throw new ApiRequestException(
-          409,
-          sameStart ? "SLOT_TAKEN" : "OVERLAP",
-          sameStart ? "Этот слот уже занят" : "Встреча пересекается с другой встречей");
+      throw slotConflict();
     }
     return toDto(result.created());
+  }
+
+  private static ApiRequestException slotConflict() {
+    return new ApiRequestException(409, SLOT_CONFLICT_CODE, SLOT_CONFLICT_MESSAGE);
   }
 
   public java.util.List<BookingDto> upcoming() {
