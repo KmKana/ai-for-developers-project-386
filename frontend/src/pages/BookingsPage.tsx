@@ -29,7 +29,7 @@ export default function BookingsPage() {
 
       {error && <div className="banner banner-error">{error}</div>}
 
-      {loaded && bookings.length === 0 && (
+      {loaded && !error && bookings.length === 0 && (
         <div className="empty">
           Пока нет записей. Когда гость забронирует слот, встреча появится здесь.
         </div>

@@ -1,10 +1,22 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { fetchMeetingTypes } from './api';
 
-afterEach(cleanup);
+vi.mock('./api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./api')>();
+  return {
+    ...actual,
+    fetchMeetingTypes: vi.fn(),
+  };
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 function LocationProbe() {
   const location = useLocation();
@@ -36,5 +48,19 @@ describe('Главная страница', () => {
 
     expect(screen.getByTestId('location').textContent).toBe('/booking');
     expect(screen.getByRole('heading', { level: 1, name: 'Запись скоро' })).toBeTruthy();
+  });
+
+  it('ведёт в каталог по ссылке в шапке', async () => {
+    vi.mocked(fetchMeetingTypes).mockResolvedValue([
+      { id: 'type-1', name: 'Знакомство', durationMinutes: 30 },
+    ]);
+    renderAt('/');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Каталог' }));
+
+    expect(screen.getByTestId('location').textContent).toBe('/catalog');
+    expect(screen.getByRole('heading', { level: 1, name: 'Kanybek' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 3, name: 'Знакомство' })).toBeTruthy();
+    expect(screen.queryByText('Что-то пошло не так. Попробуйте ещё раз.')).toBeNull();
   });
 });

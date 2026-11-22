@@ -111,7 +111,9 @@ export default function EventTypesPage() {
 
         <section>
           <h3 className="step-title">Каталог ({types.length})</h3>
-          {loaded && types.length === 0 && <div className="empty">Типов встреч пока нет.</div>}
+          {loaded && !error && types.length === 0 && (
+            <div className="empty">Типов встреч пока нет.</div>
+          )}
           <div className="type-list">
             {types.map((type) => (
               <article key={type.id} className="type-row">
