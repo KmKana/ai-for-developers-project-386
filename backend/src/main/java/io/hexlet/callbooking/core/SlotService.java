@@ -38,7 +38,7 @@ public class SlotService {
     LocalDate from = rules.currentWindowStart();
     LocalDate to = rules.currentWindowEndInclusive();
     List<SlotDto> slots = new ArrayList<>();
-    // Снимок под монитором хранилища: просмотр Слотов ничего не бронирует.
+    // Один снимок Записей на запрос под монитором хранилища: просмотр Слотов ничего не бронирует.
     List<Booking> existing = store.upcomingBookings();
     for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
       if (!BookingRules.WORK_DAYS.contains(day.getDayOfWeek())) {

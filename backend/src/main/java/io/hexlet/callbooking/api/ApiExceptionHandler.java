@@ -22,6 +22,14 @@ public class ApiExceptionHandler {
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ApiErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+    // Jackson оборачивает ошибки десериализации; собственное сообщение DTO должно дойти до клиента.
+    Throwable cause = ex;
+    while (cause != null) {
+      if (cause instanceof ApiRequestException api) {
+        return handleApiRequest(api);
+      }
+      cause = cause.getCause();
+    }
     return ResponseEntity.badRequest()
         .body(
             new ApiErrorResponse(

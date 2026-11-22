@@ -47,6 +47,7 @@ export default function BookingsPage() {
                   ),
                 )}
               </span>
+              <span className="muted small">Создано: {formatDateTime(booking.createdAt)}</span>
             </div>
             <div className="booking-who">
               <span className="chip">{booking.meetingTypeName}</span>
