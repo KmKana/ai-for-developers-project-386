@@ -1,2 +1,6 @@
 dist
 src/sdk
+test-results
+playwright-report
+test-results
+playwright-report

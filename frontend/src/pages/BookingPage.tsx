@@ -104,7 +104,7 @@ export default function BookingPage() {
   if (booked) {
     return (
       <div className="page">
-        <div className="panel success">
+        <div className="panel success" data-testid="booking-success">
           <h2>Встреча забронирована!</h2>
           <p className="muted">Мы держим за вами это время. Детали ниже.</p>
           <dl className="details">
@@ -188,6 +188,8 @@ export default function BookingPage() {
               <button
                 key={day}
                 type="button"
+                data-testid="day-chip"
+                data-day={day}
                 className={`day-chip${active ? ' active' : ''}${isWeekend(day) ? ' weekend' : ''}`}
                 onClick={() => {
                   setSelectedDay(day);
@@ -213,6 +215,8 @@ export default function BookingPage() {
                 <button
                   key={slot.start}
                   type="button"
+                  data-testid="slot-button"
+                  data-start={slot.start}
                   className={`slot${active ? ' active' : ''}`}
                   onClick={() => setSelectedSlot(slot)}
                 >
@@ -224,11 +228,16 @@ export default function BookingPage() {
         )}
 
         <h3 className="step-title">3. Представьтесь</h3>
-        {conflict && <div className="banner banner-error">{conflict}</div>}
+        {conflict && (
+          <div className="banner banner-error" data-testid="booking-conflict">
+            {conflict}
+          </div>
+        )}
         <form className="panel form" onSubmit={(e) => void submit(e)}>
           <label>
             Имя
             <input
+              data-testid="guest-name"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Как вас зовут?"
@@ -238,6 +247,7 @@ export default function BookingPage() {
           <label>
             Email
             <input
+              data-testid="guest-email"
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
               type="email"
@@ -245,7 +255,12 @@ export default function BookingPage() {
               required
             />
           </label>
-          <button className="btn" type="submit" disabled={!selectedSlot || submitting}>
+          <button
+            className="btn"
+            type="submit"
+            data-testid="submit-booking"
+            disabled={!selectedSlot || submitting}
+          >
             {selectedSlot
               ? `Подтвердить запись на ${formatDateTime(selectedSlot.start)}`
               : 'Сначала выберите время'}

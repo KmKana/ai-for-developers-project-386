@@ -36,13 +36,13 @@ export default function CatalogPage() {
 
       <div className="card-grid">
         {types?.map((type) => (
-          <article key={type.id} className="type-card">
+          <article key={type.id} className="type-card" data-testid="meeting-type-card">
             <div className="type-card-head">
               <h3>{type.name}</h3>
               <span className="chip">{formatDuration(type.durationMinutes)}</span>
             </div>
             {type.description && <p className="muted">{type.description}</p>}
-            <Link className="btn" to={`/book/${type.id}`}>
+            <Link className="btn" to={`/book/${type.id}`} data-testid="book-link">
               Записаться
             </Link>
           </article>
