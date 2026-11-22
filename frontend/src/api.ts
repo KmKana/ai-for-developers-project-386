@@ -7,7 +7,14 @@ import {
 } from './sdk';
 import { client } from './sdk/client.gen';
 
-import type { Booking, BookingInput, MeetingType, MeetingTypeInput, Slot } from './sdk/types.gen';
+import type {
+  ApiError,
+  Booking,
+  BookingInput,
+  MeetingType,
+  MeetingTypeInput,
+  Slot,
+} from './sdk/types.gen';
 
 // Фронтенд общается с API по тому же origin: в dev это прокси Vite,
 // в проде — тот же сервер. Абсолютный адрес из контракта не нужен.
@@ -22,11 +29,12 @@ const CONFLICT_CODES = new Set([
   'OUT_OF_WINDOW',
 ]);
 
-export type ApiFailure = { code?: string; message?: string };
+/** Форма ошибки берётся из сгенерированного SDK, а не описывается вручную. */
+type ApiFailure = Partial<ApiError>;
 
 /** Ошибка вызова API с кодом из контракта. */
 export class ApiCallError extends Error {
-  readonly code?: string;
+  readonly code?: ApiError['code'];
 
   constructor(failure?: ApiFailure | null) {
     super(failureMessage(failure));

@@ -119,18 +119,30 @@ model BookingInput {
   guestEmail: string;
 }
 
-/** Ответ об ошибке. */
+/**
+ * Единый формат ошибки API: машинный код и понятное сообщение.
+ *
+ * Код — строка, чтобы контракт можно было расширять новыми ошибками,
+ * не меняя форму ответа. Для некорректных данных используется VALIDATION_ERROR
+ * со статусом 400; остальные коды документируются в следующих операциях.
+ */
+model ApiError {
+  /** Машинный код ошибки: VALIDATION_ERROR (400) и другие коды операций. */
+  @example("VALIDATION_ERROR")
+  code: string;
+
+  /** Понятное описание ошибки, которое показывает интерфейс. */
+  message: string;
+}
+
+/** Ответ об ошибке 400 VALIDATION_ERROR: данные запроса не прошли проверку. */
 @error
 model ValidationError {
   /** Всегда 400. */
   @statusCode
   statusCode: 400;
 
-  /** Машинный код ошибки, например VALIDATION_ERROR, MEETING_TYPE_NOT_FOUND. */
-  code: string;
-
-  /** Понятное описание ошибки. */
-  message: string;
+  ...ApiError;
 }
 
 /** Ответ при конфликте: время недоступно или уже занято. */
@@ -140,11 +152,7 @@ model ConflictError {
   @statusCode
   statusCode: 409;
 
-  /** Машинный код ошибки: SLOT_TAKEN, OVERLAP, OFF_GRID, OUTSIDE_WORKING_HOURS, OUT_OF_WINDOW. */
-  code: string;
-
-  /** Понятное описание ошибки. */
-  message: string;
+  ...ApiError;
 }
 
 /** Успешный ответ создания типа встречи (201). */
