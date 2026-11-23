@@ -1,6 +1,7 @@
 package io.hexlet.callbooking.api;
 
 import io.hexlet.callbooking.api.dto.ApiErrorResponse;
+import io.hexlet.callbooking.core.ApiErrorCode;
 import io.hexlet.callbooking.core.ApiRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +34,8 @@ public class ApiExceptionHandler {
     return ResponseEntity.badRequest()
         .body(
             new ApiErrorResponse(
-                "VALIDATION_ERROR", "Некорректное тело запроса: проверьте формат JSON и дат"));
+                ApiErrorCode.VALIDATION_ERROR.value(),
+                "Некорректное тело запроса: проверьте формат JSON и дат"));
   }
 
   @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -42,7 +44,8 @@ public class ApiExceptionHandler {
     return ResponseEntity.badRequest()
         .body(
             new ApiErrorResponse(
-                "VALIDATION_ERROR", "Не передан обязательный параметр: " + ex.getParameterName()));
+                ApiErrorCode.VALIDATION_ERROR.value(),
+                "Не передан обязательный параметр: " + ex.getParameterName()));
   }
 
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -51,12 +54,15 @@ public class ApiExceptionHandler {
     return ResponseEntity.badRequest()
         .body(
             new ApiErrorResponse(
-                "VALIDATION_ERROR", "Некорректный параметр запроса: " + ex.getName()));
+                ApiErrorCode.VALIDATION_ERROR.value(),
+                "Некорректный параметр запроса: " + ex.getName()));
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex) {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body(new ApiErrorResponse("INTERNAL_ERROR", "Внутренняя ошибка сервера"));
+        .body(
+            new ApiErrorResponse(
+                ApiErrorCode.INTERNAL_ERROR.value(), ApiErrorCode.INTERNAL_ERROR.defaultMessage()));
   }
 }

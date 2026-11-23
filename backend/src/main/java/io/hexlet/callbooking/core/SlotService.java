@@ -32,7 +32,7 @@ public class SlotService {
     MeetingType type = store.findMeetingType(meetingTypeId);
     if (type == null) {
       throw new ApiRequestException(
-          400, "MEETING_TYPE_NOT_FOUND", "Тип встречи не найден: " + meetingTypeId);
+          400, ApiErrorCode.MEETING_TYPE_NOT_FOUND, "Тип встречи не найден: " + meetingTypeId);
     }
     long durationMinutes = type.durationMinutes();
     LocalDate from = rules.currentWindowStart();

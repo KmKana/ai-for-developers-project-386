@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hexlet.callbooking.core.BookingRules;
+import io.hexlet.callbooking.core.FixedClockConfig;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -19,22 +20,26 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Сквозные проверки API по контракту: создание типа встречи, свободные слоты, бронирование,
- * пересечения разных типов и список предстоящих встреч владельца.
+ * Сквозные проверки API по контракту: создание типа встречи, свободные Слоты, запись, пересечения
+ * разных типов и список предстоящих встреч владельца.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(FixedClockConfig.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ApiBookingFlowTest {
 
   @Autowired private MockMvc mvc;
 
   @Autowired private ObjectMapper om;
+
+  @Autowired private BookingRules rules;
 
   private String createType(String name, String description, int durationMinutes) throws Exception {
     MvcResult result =
@@ -61,8 +66,8 @@ class ApiBookingFlowTest {
   }
 
   /** Первый рабочий день окна записи (окно всегда начинается с завтра). */
-  private static LocalDate firstWorkingDay() {
-    LocalDate day = BookingRules.windowStart();
+  private LocalDate firstWorkingDay() {
+    LocalDate day = rules.currentWindowStart();
     while (!BookingRules.WORK_DAYS.contains(day.getDayOfWeek())) {
       day = day.plusDays(1);
     }
@@ -139,8 +144,8 @@ class ApiBookingFlowTest {
     List<Map<String, Object>> slots = slots(typeId);
     assertThat(slots).isNotEmpty();
 
-    LocalDate windowStart = BookingRules.windowStart();
-    LocalDate windowEnd = BookingRules.windowEndInclusive();
+    LocalDate windowStart = rules.currentWindowStart();
+    LocalDate windowEnd = rules.currentWindowEndInclusive();
     for (Map<String, Object> slot : slots) {
       OffsetDateTime start = OffsetDateTime.parse((String) slot.get("start"));
       OffsetDateTime end = OffsetDateTime.parse((String) slot.get("end"));
@@ -327,7 +332,7 @@ class ApiBookingFlowTest {
   @Test
   void bookingRejectsTimesOutsideRules() throws Exception {
     String typeId = createType("Знакомство", "30 минут", 30);
-    LocalDate windowEnd = BookingRules.windowEndInclusive();
+    LocalDate windowEnd = rules.currentWindowEndInclusive();
 
     // Не на 30-минутной сетке.
     mvc.perform(
@@ -359,7 +364,7 @@ class ApiBookingFlowTest {
     mvc.perform(
             post("/api/bookings")
                 .contentType(APPLICATION_JSON)
-                .content(booking(typeId, iso(LocalDate.now(BookingRules.ZONE), 10, 0))))
+                .content(booking(typeId, iso(rules.currentWindowStart().minusDays(1), 10, 0))))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("OUT_OF_WINDOW"));
 
@@ -372,7 +377,7 @@ class ApiBookingFlowTest {
         .andExpect(jsonPath("$.code").value("OUT_OF_WINDOW"));
 
     // Выходной день.
-    LocalDate weekend = BookingRules.windowStart();
+    LocalDate weekend = rules.currentWindowStart();
     while (BookingRules.WORK_DAYS.contains(weekend.getDayOfWeek())) {
       weekend = weekend.plusDays(1);
     }
@@ -457,7 +462,7 @@ class ApiBookingFlowTest {
     assertThat(after).hasSize(before.size() - 1);
     assertThat(after.stream().map(s -> s.get("start"))).doesNotContain(booked);
 
-    // Другой тип тоже не может занять это время: 30-минутная бронь
+    // Другой тип тоже не может занять это время: 30-минутная Запись
     // перекрывает первые слоты 60-минутного типа.
     String hourType = createType("Час обзора", "60 минут", 60);
     List<Map<String, Object>> hourSlots = slots(hourType);

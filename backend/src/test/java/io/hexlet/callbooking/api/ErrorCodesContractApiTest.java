@@ -8,11 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hexlet.callbooking.core.FixedClockConfig;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -108,41 +103,18 @@ class ErrorCodesContractApiTest {
 
   private ResultActions book(String typeId, String start, String guestName, String guestEmail)
       throws Exception {
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("meetingTypeId", typeId);
-    payload.put("start", start);
-    payload.put("guestName", guestName);
-    payload.put("guestEmail", guestEmail);
-    return mvc.perform(
-        post("/api/bookings")
-            .contentType(APPLICATION_JSON)
-            .content(om.writeValueAsString(payload)));
+    return ApiTestFixtures.book(mvc, typeId, start, guestName, guestEmail);
   }
 
   private String createType(int durationMinutes) throws Exception {
-    String response =
-        mvc.perform(
-                post("/api/meeting-types")
-                    .contentType(APPLICATION_JSON)
-                    .content(meetingType("Знакомство", durationMinutes)))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return om.readTree(response).get("id").asText();
+    return ApiTestFixtures.createType(mvc, om, "Знакомство", durationMinutes);
   }
 
   private String meetingType(String name, int durationMinutes) throws Exception {
-    Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("name", name);
-    payload.put("durationMinutes", durationMinutes);
-    return om.writeValueAsString(payload);
+    return ApiTestFixtures.meetingTypeJson(om, name, durationMinutes);
   }
 
   private static String iso(String date, int hour, int minute) {
-    return LocalDate.parse(date)
-        .atTime(LocalTime.of(hour, minute))
-        .atZone(FixedClockConfig.OWNER_ZONE)
-        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    return ApiTestFixtures.iso(date, hour, minute);
   }
 }

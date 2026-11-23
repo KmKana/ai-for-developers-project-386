@@ -20,26 +20,29 @@ public class MeetingTypeService {
   public MeetingTypeDto create(MeetingTypeInputDto input) {
     String rawName = input.name();
     if (rawName == null || rawName.isBlank()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Название типа встречи обязательно");
+      throw new ApiRequestException(
+          400, ApiErrorCode.VALIDATION_ERROR, "Название типа встречи обязательно");
     }
     if (rawName.length() > 100) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Название не длиннее 100 символов");
+      throw new ApiRequestException(
+          400, ApiErrorCode.VALIDATION_ERROR, "Название не длиннее 100 символов");
     }
     String name = rawName.trim();
     if (input.durationMinutes() == null) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Длительность обязательна");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Длительность обязательна");
     }
     int duration = input.durationMinutes();
     if (duration < BookingRules.MIN_TYPE_DURATION || duration > BookingRules.MAX_TYPE_DURATION) {
       throw new ApiRequestException(
           400,
-          "VALIDATION_ERROR",
+          ApiErrorCode.VALIDATION_ERROR,
           "Длительность должна быть от %d до %d минут"
               .formatted(BookingRules.MIN_TYPE_DURATION, BookingRules.MAX_TYPE_DURATION));
     }
     String rawDescription = input.description();
     if (rawDescription != null && rawDescription.length() > 500) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Описание не длиннее 500 символов");
+      throw new ApiRequestException(
+          400, ApiErrorCode.VALIDATION_ERROR, "Описание не длиннее 500 символов");
     }
     String description = rawDescription == null ? null : rawDescription.trim();
     MeetingType created = store.addMeetingType(name, description, duration);
