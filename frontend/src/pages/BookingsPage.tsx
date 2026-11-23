@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { fetchBookings } from '../api';
 import type { Booking } from '../sdk';
 import { formatDateTime, formatDuration } from '../util/format';
+
+/** Интервал обновления списка Владельца без перезагрузки страницы. */
+const REFRESH_MS = 15_000;
 
 /** Страница владельца: предстоящие встречи по всем типам. */
 export default function BookingsPage() {
@@ -10,17 +13,37 @@ export default function BookingsPage() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchBookings()
-      .then((list) => {
-        setBookings(list);
-        setLoaded(true);
-      })
-      .catch((e: Error) => {
-        setError(e.message);
-        setLoaded(true);
-      });
+  const refresh = useCallback(async () => {
+    try {
+      const list = await fetchBookings();
+      setBookings(list);
+      setError(null);
+      setLoaded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить записи');
+      setLoaded(true);
+    }
   }, []);
+
+  useEffect(() => {
+    void refresh();
+
+    const onFocus = () => void refresh();
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        void refresh();
+      }
+    };
+    const timer = window.setInterval(() => void refresh(), REFRESH_MS);
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refresh]);
 
   return (
     <div className="page">

@@ -2,21 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test, type APIRequestContext } from '@playwright/test';
 
+import type { Booking, MeetingType } from '../src/sdk';
 import { backendUrl } from './config';
 
 const CONFLICT_MESSAGE = 'Выбранное время уже занято. Выберите другой слот';
 
-interface MeetingType {
-  id: string;
-  name: string;
-}
-
-interface Booking {
-  id: string;
-  meetingTypeId: string;
-  guestName: string;
-  start: string;
-}
+// AGENTS.md: React обращается к API только через сгенерированный SDK. Здесь же
+// Playwright request — отдельный клиент для подготовки и проверки данных E2E,
+// поэтому URL собирается явно и не дублирует вызовы компонентов.
 
 async function createMeetingType(request: APIRequestContext, name: string): Promise<MeetingType> {
   const response = await request.post(`${backendUrl}/api/meeting-types`, {
@@ -89,7 +82,7 @@ test('гость записывается на слот, конфликт из �
   await expect(ownerRow).toContainText(typeName);
   await expect(ownerRow).toContainText(guestEmail);
 
-  // Устаревшая вкладка отправляет тот же интервал после успешной брони.
+  // Устаревшая вкладка отправляет тот же Слот после успешной Записи.
   await stalePage.getByTestId('submit-booking').click();
   await expect(stalePage.getByTestId('booking-conflict')).toHaveText(CONFLICT_MESSAGE);
   await expect(

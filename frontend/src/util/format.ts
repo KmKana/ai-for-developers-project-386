@@ -1,5 +1,28 @@
 const TIME_ZONE = 'Asia/Almaty';
 
+const ALMATY_CALENDAR = new Intl.DateTimeFormat('en-US', {
+  timeZone: TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+function almatyDateKey(now: Date): string {
+  const parts = ALMATY_CALENDAR.formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+
+/** Окно записи: 14 календарных дней, начиная с завтрашнего дня по Asia/Almaty. */
+export function bookingWindowDates(now: Date = new Date()): string[] {
+  const [year, month, day] = almatyDateKey(now).split('-').map(Number);
+  const first = Date.UTC(year, month - 1, day + 1);
+  return Array.from({ length: 14 }, (_, index) =>
+    new Date(first + index * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  );
+}
+
 /** Время начала слота, например «09:30». */
 export function formatTime(iso: string): string {
   return new Intl.DateTimeFormat('ru-RU', {
@@ -40,6 +63,11 @@ export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest === 0 ? `${hours} ч` : `${hours} ч ${rest} мин`;
+}
+
+/** Длительность Слота в минутах из ответа SDK. */
+export function slotDurationMinutes(slot: { start: string; end: string }): number {
+  return Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
 }
 
 /** Календарный день слота: префикс ISO-даты (слоты приходят в поясе владельца). */

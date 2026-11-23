@@ -4,12 +4,14 @@ import { Link, useParams } from 'react-router-dom';
 import { createBooking, fetchMeetingTypes, fetchSlots, isConflict } from '../api';
 import type { Booking, MeetingType, Slot } from '../sdk';
 import {
+  bookingWindowDates,
   dayKey,
   dayParts,
   formatDateTime,
   formatDuration,
   formatTime,
   isWeekend,
+  slotDurationMinutes,
 } from '../util/format';
 
 /** Страница записи: календарь на 14 дней, слоты и форма гостя. */
@@ -62,11 +64,13 @@ export default function BookingPage() {
     return map;
   }, [slots]);
 
-  const days = useMemo(() => [...byDay.keys()].sort(), [byDay]);
+  // Календарь не зависит от ответа SDK: показываем все 14 дней окна, включая
+  // выходные и дни без свободных Слотов.
+  const days = useMemo(() => bookingWindowDates(), []);
 
   useEffect(() => {
     if (days.length > 0 && (selectedDay === null || !days.includes(selectedDay))) {
-      setSelectedDay(days[0]);
+      setSelectedDay(days.find((day) => !isWeekend(day)) ?? days[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
@@ -125,7 +129,7 @@ export default function BookingPage() {
               </dd>
             </div>
           </dl>
-          <Link className="btn btn-secondary" to="/">
+          <Link className="btn btn-secondary" to="/catalog">
             Записаться ещё раз
           </Link>
         </div>
@@ -179,18 +183,19 @@ export default function BookingPage() {
 
       <section className="booking-main">
         <h3 className="step-title">1. Выберите день</h3>
-        {days.length === 0 && <div className="empty">Свободных дней в ближайшие 14 дней нет.</div>}
         <div className="day-strip">
           {days.map((day) => {
             const parts = dayParts(`${day}T09:00:00+05:00`);
             const active = day === selectedDay;
+            const weekend = isWeekend(day);
             return (
               <button
                 key={day}
                 type="button"
                 data-testid="day-chip"
                 data-day={day}
-                className={`day-chip${active ? ' active' : ''}${isWeekend(day) ? ' weekend' : ''}`}
+                disabled={weekend}
+                className={`day-chip${active ? ' active' : ''}${weekend ? ' weekend' : ''}`}
                 onClick={() => {
                   setSelectedDay(day);
                   setSelectedSlot(null);
@@ -220,7 +225,7 @@ export default function BookingPage() {
                   className={`slot${active ? ' active' : ''}`}
                   onClick={() => setSelectedSlot(slot)}
                 >
-                  {formatTime(slot.start)}
+                  {formatTime(slot.start)} · {formatDuration(slotDurationMinutes(slot))}
                 </button>
               );
             })}
