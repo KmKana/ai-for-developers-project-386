@@ -4,12 +4,14 @@ import { Link, useParams } from 'react-router-dom';
 import { createBooking, fetchMeetingTypes, fetchSlots, isConflict } from '../api';
 import type { Booking, MeetingType, Slot } from '../sdk';
 import {
+  bookingWindowDays,
   dayKey,
   dayParts,
   formatDateTime,
   formatDuration,
   formatTime,
   isWeekend,
+  slotDurationMinutes,
 } from '../util/format';
 
 /** Страница записи: календарь на 14 дней, слоты и форма гостя. */
@@ -62,11 +64,13 @@ export default function BookingPage() {
     return map;
   }, [slots]);
 
-  const days = useMemo(() => [...byDay.keys()].sort(), [byDay]);
+  // Календарь не зависит от ответа SDK: показываем все 14 дней окна, включая
+  // выходные и полностью занятые дни, даже если сервер не вернул для них Слоты.
+  const days = useMemo(() => bookingWindowDays(), []);
 
   useEffect(() => {
     if (days.length > 0 && (selectedDay === null || !days.includes(selectedDay))) {
-      setSelectedDay(days[0]);
+      setSelectedDay(days.find((day) => !isWeekend(day)) ?? days[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
@@ -104,7 +108,7 @@ export default function BookingPage() {
   if (booked) {
     return (
       <div className="page">
-        <div className="panel success">
+        <div className="panel success" data-testid="booking-success">
           <h2>Встреча забронирована!</h2>
           <p className="muted">Мы держим за вами это время. Детали ниже.</p>
           <dl className="details">
@@ -125,7 +129,7 @@ export default function BookingPage() {
               </dd>
             </div>
           </dl>
-          <Link className="btn btn-secondary" to="/">
+          <Link className="btn btn-secondary" to="/catalog">
             Записаться ещё раз
           </Link>
         </div>
@@ -179,16 +183,19 @@ export default function BookingPage() {
 
       <section className="booking-main">
         <h3 className="step-title">1. Выберите день</h3>
-        {days.length === 0 && <div className="empty">Свободных дней в ближайшие 14 дней нет.</div>}
         <div className="day-strip">
           {days.map((day) => {
             const parts = dayParts(`${day}T09:00:00+05:00`);
             const active = day === selectedDay;
+            const weekend = isWeekend(day);
             return (
               <button
                 key={day}
                 type="button"
-                className={`day-chip${active ? ' active' : ''}${isWeekend(day) ? ' weekend' : ''}`}
+                data-testid="day-chip"
+                data-day={day}
+                disabled={weekend}
+                className={`day-chip${active ? ' active' : ''}${weekend ? ' weekend' : ''}`}
                 onClick={() => {
                   setSelectedDay(day);
                   setSelectedSlot(null);
@@ -213,10 +220,12 @@ export default function BookingPage() {
                 <button
                   key={slot.start}
                   type="button"
+                  data-testid="slot-button"
+                  data-start={slot.start}
                   className={`slot${active ? ' active' : ''}`}
                   onClick={() => setSelectedSlot(slot)}
                 >
-                  {formatTime(slot.start)}
+                  {formatTime(slot.start)} · {formatDuration(slotDurationMinutes(slot))}
                 </button>
               );
             })}
@@ -224,11 +233,16 @@ export default function BookingPage() {
         )}
 
         <h3 className="step-title">3. Представьтесь</h3>
-        {conflict && <div className="banner banner-error">{conflict}</div>}
+        {conflict && (
+          <div className="banner banner-error" data-testid="booking-conflict">
+            {conflict}
+          </div>
+        )}
         <form className="panel form" onSubmit={(e) => void submit(e)}>
           <label>
             Имя
             <input
+              data-testid="guest-name"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Как вас зовут?"
@@ -238,6 +252,7 @@ export default function BookingPage() {
           <label>
             Email
             <input
+              data-testid="guest-email"
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
               type="email"
@@ -245,7 +260,12 @@ export default function BookingPage() {
               required
             />
           </label>
-          <button className="btn" type="submit" disabled={!selectedSlot || submitting}>
+          <button
+            className="btn"
+            type="submit"
+            data-testid="submit-booking"
+            disabled={!selectedSlot || submitting}
+          >
             {selectedSlot
               ? `Подтвердить запись на ${formatDateTime(selectedSlot.start)}`
               : 'Сначала выберите время'}

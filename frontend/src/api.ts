@@ -7,26 +7,51 @@ import {
 } from './sdk';
 import { client } from './sdk/client.gen';
 
-import type { Booking, BookingInput, MeetingType, MeetingTypeInput, Slot } from './sdk/types.gen';
+import type {
+  ApiError,
+  ApiErrorCode,
+  Booking,
+  BookingInput,
+  MeetingType,
+  MeetingTypeInput,
+  Slot,
+} from './sdk/types.gen';
 
 // Фронтенд общается с API по тому же origin: в dev это прокси Vite,
 // в проде — тот же сервер. Абсолютный адрес из контракта не нужен.
 client.setConfig({ baseUrl: '' });
 
-/** Коды 409-ответов: время недоступно. */
-const CONFLICT_CODES = new Set([
-  'SLOT_TAKEN',
-  'OVERLAP',
-  'OFF_GRID',
-  'OUTSIDE_WORKING_HOURS',
-  'OUT_OF_WINDOW',
-]);
+type ErrorCodeKind = 'validation' | 'conflict' | 'server';
 
-export type ApiFailure = { code?: string; message?: string };
+/**
+ * ApiErrorCode в SDK — это TypeScript union: во время выполнения он исчезает.
+ * Поэтому сценарии кодов перечислены один раз здесь. `satisfies` заставляет
+ * карту покрывать весь union, а KNOWN_CODES и CONFLICT_CODES выводятся из неё.
+ */
+const ERROR_CODE_KINDS = {
+  VALIDATION_ERROR: 'validation',
+  MEETING_TYPE_NOT_FOUND: 'validation',
+  SLOT_CONFLICT: 'conflict',
+  OFF_GRID: 'conflict',
+  OUTSIDE_WORKING_HOURS: 'conflict',
+  OUT_OF_WINDOW: 'conflict',
+  INTERNAL_ERROR: 'server',
+} as const satisfies Record<ApiErrorCode, ErrorCodeKind>;
+
+/** Все коды контракта: только их сообщения можно показывать Гостю. */
+const KNOWN_CODES = Object.keys(
+  ERROR_CODE_KINDS,
+) as ApiErrorCode[] satisfies readonly ApiErrorCode[];
+
+/** Коды 409-ответов: время недоступно, нужно обновить Слоты. */
+const CONFLICT_CODES = new Set(KNOWN_CODES.filter((code) => ERROR_CODE_KINDS[code] === 'conflict'));
+
+/** Форма ошибки берётся из сгенерированного SDK, а не описывается вручную. */
+type ApiFailure = Partial<ApiError>;
 
 /** Ошибка вызова API с кодом из контракта. */
 export class ApiCallError extends Error {
-  readonly code?: string;
+  readonly code?: ApiError['code'];
 
   constructor(failure?: ApiFailure | null) {
     super(failureMessage(failure));
@@ -34,8 +59,9 @@ export class ApiCallError extends Error {
   }
 }
 
+/** Сценарий выбирается по коду: служебный текст неизвестного кода не показываем. */
 export function failureMessage(failure?: ApiFailure | null): string {
-  if (failure && failure.message) {
+  if (failure?.code && KNOWN_CODES.includes(failure.code) && failure.message) {
     return failure.message;
   }
   return 'Что-то пошло не так. Попробуйте ещё раз.';

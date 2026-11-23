@@ -19,7 +19,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * Предстоящие встречи владельца по всем типам, отсортированные по времени.
+ * Предстоящие Записи Владельца по всем Типам, отсортированные по времени.
  */
 export const apiListBookings = <ThrowOnError extends boolean = false>(options?: Options<ApiListBookingsData, ThrowOnError>) => {
     return (options?.client ?? _heyApiClient).get<ApiListBookingsResponses, unknown, ThrowOnError>({
@@ -43,7 +43,7 @@ export const apiCreateBooking = <ThrowOnError extends boolean = false>(options: 
 };
 
 /**
- * Каталог типов встреч владельца.
+ * Каталог Типов встреч Владельца.
  */
 export const apiListMeetingTypes = <ThrowOnError extends boolean = false>(options?: Options<ApiListMeetingTypesData, ThrowOnError>) => {
     return (options?.client ?? _heyApiClient).get<ApiListMeetingTypesResponses, unknown, ThrowOnError>({
@@ -67,7 +67,11 @@ export const apiCreateMeetingType = <ThrowOnError extends boolean = false>(optio
 };
 
 /**
- * Свободные слоты выбранного типа встречи на ближайшие 14 дней.
+ * Свободные Слоты выбранного Типа встречи в окне завтра + 13 дней по Asia/Almaty.
+ *
+ * Возможные ошибки 400 с общей моделью ApiError:
+ * VALIDATION_ERROR — параметр meetingTypeId не передан или некорректен;
+ * MEETING_TYPE_NOT_FOUND — тип встречи с таким идентификатором неизвестен.
  */
 export const apiListAvailableSlots = <ThrowOnError extends boolean = false>(options: Options<ApiListAvailableSlotsData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<ApiListAvailableSlotsResponses, ApiListAvailableSlotsErrors, ThrowOnError>({

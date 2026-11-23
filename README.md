@@ -53,7 +53,8 @@ cd ../../frontend && npm install && npm run generate-sdk   # OpenAPI -> SDK: fro
 ## Каркас, проверки и CI
 
 - Версии инструментов зафиксированы в `mise.toml` ([mise](https://mise.jdx.dev): Java 21, Maven 3.9.6, Node 24). После установки mise: `mise install` и `mise run install`.
-- Одна команда всех проверок — **`mise run check`**: Spotless (формат Java), ESLint и Prettier (фронтенд), тесты бэкенда (JUnit 5), тесты фронтенда (Vitest) и сборка фронтенда с проверкой типов. Проверки в CI на каждый push запускаются через `.github/workflows/hexlet-check.yml` (`hexlet/project-action`; файл создан Hexlet и не редактируется).
+- Одна команда всех проверок — **`mise run check`**: Spotless (формат Java), ESLint и Prettier (фронтенд), тесты бэкенда (JUnit 5, включая контрактные и тест конкурентности), Vitest, проверка типов и сборка React, проверка расхождения OpenAPI/SDK и браузерный E2E. проверка расхождения контракта и Spotless идут параллельно, Vitest запускается после JUnit и сборки и не страдает от конкуренции за CPU, E2E запускается последним: если предыдущая проверка упала, серверы E2E не поднимаются.
+- На каждый push отдельный workflow `.github/workflows/check.yml` запускает ту же команду `mise run check` с теми же версиями инструментов из `mise.toml`. Workflow `.github/workflows/hexlet-check.yml` создан Hexlet и не редактируется; релизный workflow также остаётся отдельным.
 - Дымовой тест запуска приложения — `SmokeTest` (бэкенд поднимается и отвечает 200).
 - Git-хуки: `mise run hooks` включает pre-commit из `.githooks/` (прогон линтеров перед коммитом).
 - Dev-серверы можно держать фоном через daemons mise (`mise run backend` / `mise run frontend`, либо `mise daemons start backend frontend`) — нужен experimental-режим и pitchfork, см. `mise.toml`.
@@ -92,6 +93,21 @@ cd backend && mvn test
 ```bash
 cd frontend && npm test
 ```
+
+Браузерный E2E (`mise run test-e2e` или `cd frontend && npm run test:e2e`) поднимает **настоящие**
+Spring Boot и Vite на отдельных портах: бэкенд `18080`, фронтенд `15173`. Dev-серверы на
+`8080`/`5173` не затрагиваются. Playwright ждёт готовность обоих серверов, открывает
+установленный Chrome (`channel: 'chrome'`, `C:\Program Files\Google\Chrome\Application\chrome.exe`;
+скачивание браузера не требуется) и останавливает серверы после теста — при успехе и при падении.
+В CI используется образ `ubuntu-24.04`, где Google Chrome предустановлен; наличие браузера
+проверяется шагом `google-chrome --version` перед прогоном проверок.
+
+Адрес бэкенда для прокси Vite задаётся переменной `VITE_API_PROXY_TARGET`; по умолчанию dev
+проксирует `/api` на `http://localhost:8080`. Порты можно переопределить переменными
+`E2E_BACKEND_PORT` и `E2E_FRONTEND_PORT`. Ответы API в E2E не подменяются: все запросы идут через
+реальные серверы, данные изолированы свежим процессом бэкенда на каждый прогон. Команда
+`test-e2e` — финальный шаг `mise run check`; при падении любой предыдущей проверки браузерный
+E2E не запускается.
 
 ## API (кратко)
 

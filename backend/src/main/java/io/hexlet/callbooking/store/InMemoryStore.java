@@ -1,6 +1,7 @@
 package io.hexlet.callbooking.store;
 
 import io.hexlet.callbooking.core.BookingRules;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -13,8 +14,10 @@ import org.springframework.stereotype.Component;
 /**
  * Хранилище в памяти процесса. Перезапуск сервиса сбрасывает данные.
  *
- * <p>Все операции с записями сериализуются монитором объекта, поэтому два одновременных запроса на
- * одно и то же время не могут оба пройти проверку пересечений: успешным будет только один.
+ * <p>Чтение и изменение Записей сериализуются одним монитором объекта, поэтому два одновременных
+ * запроса на одно и то же время не могут оба пройти проверку пересечений: успешным будет только
+ * один. Методы чтения возвращают неизменяемые снимки. Гарантия действует только внутри одного
+ * процесса; распределённые блокировки не реализованы.
  */
 @Component
 public class InMemoryStore {
@@ -25,6 +28,12 @@ public class InMemoryStore {
   private final Map<String, MeetingType> meetingTypes = new LinkedHashMap<>();
 
   private final List<Booking> bookings = new ArrayList<>();
+
+  private final Clock clock;
+
+  public InMemoryStore(Clock clock) {
+    this.clock = clock;
+  }
 
   public synchronized MeetingType addMeetingType(
       String name, String description, int durationMinutes) {
@@ -42,8 +51,8 @@ public class InMemoryStore {
   }
 
   /**
-   * Атомарно проверяет пересечение интервала [start, end) с уже существующими записями и добавляет
-   * новую. Частичное наложение запрещено; стык интервалов разрешён (start == чужой end — ок).
+   * Атомарно проверяет пересечение Слота [start, end) с уже существующими Записями и добавляет
+   * новую. Частичное наложение запрещено; стык Слотов разрешён (start == чужой end — ок).
    */
   public synchronized AddBookingResult tryAddBooking(
       String meetingTypeId,
@@ -52,11 +61,7 @@ public class InMemoryStore {
       Instant end,
       String guestName,
       String guestEmail) {
-    Booking conflict =
-        bookings.stream()
-            .filter(b -> b.start().isBefore(end) && start.isBefore(b.end()))
-            .findFirst()
-            .orElse(null);
+    Booking conflict = BookingOverlap.conflict(bookings, start, end).orElse(null);
     if (conflict != null) {
       return new AddBookingResult(null, conflict);
     }
@@ -69,14 +74,14 @@ public class InMemoryStore {
             end,
             guestName,
             guestEmail,
-            OffsetDateTime.now(BookingRules.ZONE));
+            OffsetDateTime.ofInstant(clock.instant(), BookingRules.ZONE));
     bookings.add(created);
     return new AddBookingResult(created, null);
   }
 
-  /** Предстоящие встречи по всем типам, отсортированные по времени начала. */
+  /** Неизменяемый снимок предстоящих встреч по всем типам, отсортированный по времени начала. */
   public synchronized List<Booking> upcomingBookings() {
-    Instant now = Instant.now();
+    Instant now = clock.instant();
     return bookings.stream()
         .filter(b -> !b.start().isBefore(now))
         .sorted(java.util.Comparator.comparing(Booking::start))

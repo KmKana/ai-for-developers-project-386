@@ -21,31 +21,35 @@ public class BookingService {
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
   private final InMemoryStore store;
+  private final BookingRules rules;
 
-  public BookingService(InMemoryStore store) {
+  public BookingService(InMemoryStore store, BookingRules rules) {
     this.store = store;
+    this.rules = rules;
   }
 
   public BookingDto book(BookingInputDto input) {
     String meetingTypeId = input.meetingTypeId() == null ? "" : input.meetingTypeId().trim();
     if (meetingTypeId.isEmpty()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "meetingTypeId обязателен");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "meetingTypeId обязателен");
     }
     MeetingType type = store.findMeetingType(meetingTypeId);
     if (type == null) {
       throw new ApiRequestException(
-          400, "MEETING_TYPE_NOT_FOUND", "Тип встречи не найден: " + input.meetingTypeId());
+          400,
+          ApiErrorCode.MEETING_TYPE_NOT_FOUND,
+          "Тип встречи не найден: " + input.meetingTypeId());
     }
     if (input.start() == null) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Время начала обязательно");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Время начала обязательно");
     }
     String guestName = input.guestName() == null ? "" : input.guestName().trim();
     if (guestName.isEmpty()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Имя гостя обязательно");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Имя гостя обязательно");
     }
     String guestEmail = input.guestEmail() == null ? "" : input.guestEmail().trim();
     if (guestEmail.isEmpty() || !EMAIL.matcher(guestEmail).matches()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Некорректный email гостя");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Некорректный email гостя");
     }
 
     Instant startInstant = input.start().toInstant();
@@ -57,56 +61,45 @@ public class BookingService {
     LocalTime time = localStart.toLocalTime();
     int startMinutes = time.getHour() * 60 + time.getMinute();
 
-    if (date.isBefore(BookingRules.windowStart())
-        || date.isAfter(BookingRules.windowEndInclusive())) {
-      throw new ApiRequestException(
-          409,
-          "OUT_OF_WINDOW",
-          "Дата вне окна записи на %d дней (с %s по %s)"
-              .formatted(
-                  BookingRules.WINDOW_DAYS,
-                  BookingRules.windowStart(),
-                  BookingRules.windowEndInclusive()));
+    if (date.isBefore(rules.currentWindowStart())
+        || date.isAfter(rules.currentWindowEndInclusive())) {
+      throw new ApiRequestException(409, ApiErrorCode.OUT_OF_WINDOW);
     }
     if (!BookingRules.WORK_DAYS.contains(date.getDayOfWeek())) {
-      throw new ApiRequestException(
-          409, "OUTSIDE_WORKING_HOURS", "Выбран нерабочий день владельца: " + date.getDayOfWeek());
+      throw new ApiRequestException(409, ApiErrorCode.OUTSIDE_WORKING_HOURS);
     }
     if (startMinutes < BookingRules.WORK_START_MINUTES
         || startMinutes + durationMinutes > BookingRules.WORK_END_MINUTES) {
-      throw new ApiRequestException(
-          409,
-          "OUTSIDE_WORKING_HOURS",
-          "Встреча должна целиком помещаться в рабочие часы 09:00–18:00 "
-              + BookingRules.ZONE.getId());
+      throw new ApiRequestException(409, ApiErrorCode.OUTSIDE_WORKING_HOURS);
     }
     boolean onGrid =
         (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
             && time.getSecond() == 0
             && time.getNano() == 0;
     if (!onGrid) {
-      throw new ApiRequestException(
-          409, "OFF_GRID", "Начало встречи должно быть на 30-минутной сетке");
+      throw new ApiRequestException(409, ApiErrorCode.OFF_GRID);
     }
 
+    // Единственная проверка доступности выполняется под монитором хранилища вместе с созданием
+    // Записи: гонка между проверкой и добавлением исключена.
     var result =
         store.tryAddBooking(
             type.id(), type.name(), startInstant, endInstant, guestName, guestEmail);
     if (result.conflict() != null) {
-      boolean sameStart = result.conflict().start().equals(startInstant);
-      throw new ApiRequestException(
-          409,
-          sameStart ? "SLOT_TAKEN" : "OVERLAP",
-          sameStart ? "Этот слот уже занят" : "Встреча пересекается с другой встречей");
+      throw slotConflict();
     }
     return toDto(result.created());
   }
 
-  public java.util.List<BookingDto> upcoming() {
-    return store.upcomingBookings().stream().map(BookingService::toDto).toList();
+  private static ApiRequestException slotConflict() {
+    return new ApiRequestException(409, ApiErrorCode.SLOT_CONFLICT);
   }
 
-  private static BookingDto toDto(Booking booking) {
+  public java.util.List<BookingDto> upcoming() {
+    return store.upcomingBookings().stream().map(this::toDto).toList();
+  }
+
+  private BookingDto toDto(Booking booking) {
     return new BookingDto(
         booking.id(),
         booking.meetingTypeId(),
