@@ -3,13 +3,14 @@
 /**
  * Единый формат ошибки API: машинный код и понятное сообщение.
  *
- * `SLOT_CONFLICT` — единственный код для любого пересечения интервалов
+ * `SLOT_CONFLICT` — единственный код для любого пересечения Слотов
  * [start, end), независимо от совпадения старта и от Типа встречи.
  * Сообщения календарных кодов 409 фиксированы:
  * - SLOT_CONFLICT: «Выбранное время уже занято. Выберите другой слот»;
  * - OFF_GRID: «Начало встречи должно быть на 30-минутной сетке. Выберите другое время.»;
  * - OUTSIDE_WORKING_HOURS: «Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.»;
  * - OUT_OF_WINDOW: «Запись доступна на ближайшие 14 дней. Выберите другую дату.».
+ * Код `INTERNAL_ERROR` сопровождает 500 с сообщением «Внутренняя ошибка сервера».
  */
 export type ApiError = {
     /**
@@ -25,7 +26,7 @@ export type ApiError = {
 /**
  * Все коды ошибок API: клиент выбирает сценарий по коду, а текст берёт из message.
  */
-export type ApiErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_CONFLICT' | 'OFF_GRID' | 'OUTSIDE_WORKING_HOURS' | 'OUT_OF_WINDOW';
+export type ApiErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_CONFLICT' | 'OFF_GRID' | 'OUTSIDE_WORKING_HOURS' | 'OUT_OF_WINDOW' | 'INTERNAL_ERROR';
 
 /**
  * Запись гостя на встречу.
@@ -128,7 +129,7 @@ export type MeetingTypeInput = {
 };
 
 /**
- * Свободный интервал, который можно занять.
+ * Свободный Слот, который можно занять.
  */
 export type Slot = {
     /**
