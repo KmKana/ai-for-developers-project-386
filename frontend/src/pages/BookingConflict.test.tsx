@@ -4,19 +4,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiCreateBooking, apiListAvailableSlots, apiListMeetingTypes } from '../sdk';
 import type { ApiError, MeetingType, Slot } from '../sdk';
+import { response } from '../test/sdkMocks';
 import BookingPage from './BookingPage';
 
 const FALLBACK_MESSAGE = 'Что-то пошло не так. Попробуйте ещё раз.';
 const SLOT_CONFLICT_MESSAGE = 'Выбранное время уже занято. Выберите другой слот';
 
 vi.mock('../sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../sdk')>();
-  return {
-    ...actual,
-    apiListMeetingTypes: vi.fn(),
-    apiListAvailableSlots: vi.fn(),
-    apiCreateBooking: vi.fn(),
-  };
+  const { mockSdkModule } = await import('../test/sdkMocks');
+  return mockSdkModule(importOriginal, [
+    'apiListMeetingTypes',
+    'apiListAvailableSlots',
+    'apiCreateBooking',
+  ]);
 });
 
 const types: MeetingType[] = [
@@ -33,17 +33,8 @@ const slots: Slot[] = [
   { start: '2026-03-11T10:30:00+05:00', end: '2026-03-11T11:00:00+05:00' },
 ];
 
-function response<T>(data: T, url: string) {
-  return {
-    data,
-    error: undefined,
-    request: new Request(url),
-    response: new Response(JSON.stringify(data), { status: 200 }),
-  };
-}
-
-function failure(code: string, message: string) {
-  const body: ApiError = { code: code as ApiError['code'], message };
+function failure(code: ApiError['code'], message: string) {
+  const body: ApiError = { code, message };
   return {
     data: undefined,
     error: body,
@@ -67,7 +58,7 @@ function mockSlotPages(...pages: Slot[][]) {
 async function chooseSlotAndSubmit() {
   expect(await screen.findByRole('heading', { name: 'Знакомство' })).toBeTruthy();
   // День выбирается эффектом после первого рендера — ждём появления кнопки времени.
-  fireEvent.click(await screen.findByRole('button', { name: '09:00' }));
+  fireEvent.click(await screen.findByRole('button', { name: '09:00 · 30 мин' }));
   fireEvent.change(screen.getByLabelText('Имя'), { target: { value: 'Гость' } });
   fireEvent.change(screen.getByLabelText('Email'), {
     target: { value: 'guest@example.com' },
@@ -86,12 +77,15 @@ function renderBookingPage() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-03-10T06:00:00Z'));
   vi.mocked(apiListMeetingTypes).mockResolvedValue(
     response(types, 'http://localhost/api/meeting-types'),
   );
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.clearAllMocks();
 });
@@ -99,9 +93,7 @@ afterEach(() => {
 describe('Обработка конфликтов на Странице записи', () => {
   it('SLOT_CONFLICT: показывает сообщение сервера и перезагружает Слоты', async () => {
     mockSlotPages(slots, [slots[1]]);
-    vi.mocked(apiCreateBooking).mockResolvedValue(
-      failure('SLOT_CONFLICT', SLOT_CONFLICT_MESSAGE) as never,
-    );
+    vi.mocked(apiCreateBooking).mockResolvedValue(failure('SLOT_CONFLICT', SLOT_CONFLICT_MESSAGE));
 
     renderBookingPage();
     await chooseSlotAndSubmit();
@@ -109,27 +101,27 @@ describe('Обработка конфликтов на Странице запи
     expect(await screen.findByText(SLOT_CONFLICT_MESSAGE)).toBeTruthy();
     await waitFor(() => {
       expect(apiListAvailableSlots).toHaveBeenCalledTimes(2);
-      expect(screen.queryByRole('button', { name: '09:00' })).toBeNull();
-      expect(screen.getByRole('button', { name: '10:30' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: '09:00 · 30 мин' })).toBeNull();
+      expect(screen.getByRole('button', { name: '10:30 · 30 мин' })).toBeTruthy();
     });
   });
 
   it.each([
     {
-      code: 'OFF_GRID',
+      code: 'OFF_GRID' as const,
       message: 'Начало встречи должно быть на 30-минутной сетке. Выберите другое время.',
     },
     {
-      code: 'OUTSIDE_WORKING_HOURS',
+      code: 'OUTSIDE_WORKING_HOURS' as const,
       message: 'Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.',
     },
     {
-      code: 'OUT_OF_WINDOW',
+      code: 'OUT_OF_WINDOW' as const,
       message: 'Запись доступна на ближайшие 14 дней. Выберите другую дату.',
     },
   ])('$code: показывает сообщение сервера и обновляет Слоты', async ({ code, message }) => {
     mockSlotPages(slots, slots);
-    vi.mocked(apiCreateBooking).mockResolvedValue(failure(code, message) as never);
+    vi.mocked(apiCreateBooking).mockResolvedValue(failure(code, message));
 
     renderBookingPage();
     await chooseSlotAndSubmit();
@@ -138,10 +130,22 @@ describe('Обработка конфликтов на Странице запи
     await waitFor(() => expect(apiListAvailableSlots).toHaveBeenCalledTimes(2));
   });
 
+  it('INTERNAL_ERROR: показывает сообщение сервера', async () => {
+    mockSlotPages(slots);
+    vi.mocked(apiCreateBooking).mockResolvedValue(
+      failure('INTERNAL_ERROR' as ApiError['code'], 'Внутренняя ошибка сервера'),
+    );
+
+    renderBookingPage();
+    await chooseSlotAndSubmit();
+
+    expect(await screen.findByText('Внутренняя ошибка сервера')).toBeTruthy();
+  });
+
   it('неизвестный код показывает универсальный текст вместо служебного сообщения', async () => {
     mockSlotPages(slots);
     vi.mocked(apiCreateBooking).mockResolvedValue(
-      failure('UNEXPECTED_CODE', 'Служебная информация') as never,
+      failure('UNEXPECTED_CODE' as ApiError['code'], 'Служебная информация'),
     );
 
     renderBookingPage();

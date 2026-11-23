@@ -1,18 +1,15 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiListAvailableSlots, apiListMeetingTypes } from '../sdk';
 import type { MeetingType, Slot } from '../sdk';
+import { response } from '../test/sdkMocks';
 import BookingPage from './BookingPage';
 
 vi.mock('../sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../sdk')>();
-  return {
-    ...actual,
-    apiListMeetingTypes: vi.fn(),
-    apiListAvailableSlots: vi.fn(),
-  };
+  const { mockSdkModule } = await import('../test/sdkMocks');
+  return mockSdkModule(importOriginal, ['apiListMeetingTypes', 'apiListAvailableSlots']);
 });
 
 const types: MeetingType[] = [
@@ -29,22 +26,20 @@ const slots: Slot[] = [
   { start: '2026-03-11T10:30:00+05:00', end: '2026-03-11T11:00:00+05:00' },
 ];
 
-function response<T>(data: T, url: string) {
-  return {
-    data,
-    error: undefined,
-    request: new Request(url),
-    response: new Response(JSON.stringify(data), { status: 200 }),
-  };
-}
+beforeEach(() => {
+  // Окно записи считается по времени владельца: 10 марта 2026 года → 11–24 марта.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-03-10T06:00:00Z'));
+});
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.clearAllMocks();
 });
 
 describe('Страница записи', () => {
-  it('показывает дни и время из Слотов, полученных через SDK', async () => {
+  it('показывает все 14 дней окна, недоступные выходные и Слоты из SDK', async () => {
     vi.mocked(apiListMeetingTypes).mockResolvedValue(
       response(types, 'http://localhost/api/meeting-types'),
     );
@@ -61,11 +56,41 @@ describe('Страница записи', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Знакомство' })).toBeTruthy();
-    expect(await screen.findByRole('button', { name: '09:00' })).toBeTruthy();
-    expect(screen.getByText('11')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '10:30' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '09:00 · 30 мин' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '10:30 · 30 мин' })).toBeTruthy();
     expect(apiListAvailableSlots).toHaveBeenCalledWith({
       query: { meetingTypeId: 'type-intro' },
     });
+
+    const chips = screen.getAllByTestId('day-chip');
+    expect(chips.map((chip) => chip.getAttribute('data-day'))).toEqual([
+      '2026-03-11',
+      '2026-03-12',
+      '2026-03-13',
+      '2026-03-14',
+      '2026-03-15',
+      '2026-03-16',
+      '2026-03-17',
+      '2026-03-18',
+      '2026-03-19',
+      '2026-03-20',
+      '2026-03-21',
+      '2026-03-22',
+      '2026-03-23',
+      '2026-03-24',
+    ]);
+    expect(
+      chips
+        .filter((chip) => chip.hasAttribute('disabled'))
+        .map((chip) => chip.getAttribute('data-day')),
+    ).toEqual(['2026-03-14', '2026-03-15', '2026-03-21', '2026-03-22']);
+    // День без Слотов остаётся видимым, но не предлагает время.
+    const emptyDay = chips.find((chip) => chip.getAttribute('data-day') === '2026-03-12');
+    expect(emptyDay?.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(emptyDay!);
+    expect(
+      screen.getByText('В этот день свободных слотов нет — выберите другой день.'),
+    ).toBeTruthy();
+    expect(screen.queryAllByTestId('slot-button')).toHaveLength(0);
   });
 });
