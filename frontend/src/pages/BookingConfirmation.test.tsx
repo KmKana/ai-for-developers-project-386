@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiCreateBooking, apiListAvailableSlots, apiListMeetingTypes } from '../sdk';
 import type { ApiError, Booking, MeetingType, Slot } from '../sdk';
@@ -84,8 +84,15 @@ function mockCatalog() {
   vi.mocked(apiListAvailableSlots).mockResolvedValue(response(slots, 'http://localhost/api/slots'));
 }
 
+beforeEach(() => {
+  // 10 марта 2026 года: окно записи — 11–24 марта, включая выходные 14–15 и 21–22.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-03-10T06:00:00Z'));
+});
+
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 

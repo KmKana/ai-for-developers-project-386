@@ -47,6 +47,26 @@ export function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/**
+ * Все 14 календарных дней окна записи: завтра и ещё 13 дней по Asia/Almaty.
+ * Выходные тоже входят в окно: Слотов для них нет, но дни видны Гостю.
+ */
+export function bookingWindowDays(now: Date = new Date()): string[] {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const tomorrow = Date.UTC(value('year'), value('month') - 1, value('day') + 1);
+
+  return Array.from({ length: 14 }, (_, offset) =>
+    new Date(tomorrow + offset * 86_400_000).toISOString().slice(0, 10),
+  );
+}
+
 /** Выходной ли календарный день (YYYY-MM-DD). */
 export function isWeekend(dateStr: string): boolean {
   const [year, month, day] = dateStr.split('-').map(Number);

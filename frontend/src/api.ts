@@ -1,4 +1,5 @@
 import {
+  ApiErrorCode,
   apiCreateBooking,
   apiCreateMeetingType,
   apiListAvailableSlots,
@@ -20,22 +21,15 @@ import type {
 // в проде — тот же сервер. Абсолютный адрес из контракта не нужен.
 client.setConfig({ baseUrl: '' });
 
-/** Все коды контракта: только их сообщения можно показывать пользователю. */
-const KNOWN_CODES = new Set<ApiError['code']>([
-  'VALIDATION_ERROR',
-  'MEETING_TYPE_NOT_FOUND',
-  'SLOT_CONFLICT',
-  'OFF_GRID',
-  'OUTSIDE_WORKING_HOURS',
-  'OUT_OF_WINDOW',
-]);
+/** Все коды контракта: только их сообщения можно показывать Гостю. */
+const KNOWN_CODES = new Set<ApiError['code']>(Object.values(ApiErrorCode));
 
 /** Коды 409-ответов: время недоступно, нужно обновить Слоты. */
 const CONFLICT_CODES = new Set<ApiError['code']>([
-  'SLOT_CONFLICT',
-  'OFF_GRID',
-  'OUTSIDE_WORKING_HOURS',
-  'OUT_OF_WINDOW',
+  ApiErrorCode.SLOT_CONFLICT,
+  ApiErrorCode.OFF_GRID,
+  ApiErrorCode.OUTSIDE_WORKING_HOURS,
+  ApiErrorCode.OUT_OF_WINDOW,
 ]);
 
 /** Форма ошибки берётся из сгенерированного SDK, а не описывается вручную. */

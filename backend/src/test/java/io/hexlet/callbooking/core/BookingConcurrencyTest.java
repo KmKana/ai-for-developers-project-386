@@ -49,7 +49,7 @@ class BookingConcurrencyTest {
 
   @Autowired private MeetingTypeService meetingTypeService;
 
-  @Autowired private ObjectMapper om;
+  @Autowired private ObjectMapper objectMapper;
 
   @Test
   void onlyOneOfTwelveConcurrentHttpRequestsWinsTheSlot() throws Exception {
@@ -82,12 +82,12 @@ class BookingConcurrencyTest {
         ResponseEntity<String> response = result.get(30, TimeUnit.SECONDS);
         if (response.getStatusCode().value() == 201) {
           created++;
-          JsonNode booking = om.readTree(response.getBody());
+          JsonNode booking = objectMapper.readTree(response.getBody());
           assertThat(booking.get("id").asText()).isNotBlank();
           assertThat(booking.get("start").asText()).isEqualTo(start);
         } else {
           assertThat(response.getStatusCode().value()).isEqualTo(409);
-          JsonNode error = om.readTree(response.getBody());
+          JsonNode error = objectMapper.readTree(response.getBody());
           assertThat(error.get("code").asText()).isEqualTo(SLOT_CONFLICT);
           assertThat(error.get("message").asText()).isEqualTo(SLOT_CONFLICT_MESSAGE);
           conflicts++;

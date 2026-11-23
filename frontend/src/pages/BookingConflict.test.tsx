@@ -86,6 +86,9 @@ function renderBookingPage() {
 }
 
 beforeEach(() => {
+  // 10 марта 2026 года: окно записи — 11–24 марта, включая выходные 14–15 и 21–22.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-03-10T06:00:00Z'));
   vi.mocked(apiListMeetingTypes).mockResolvedValue(
     response(types, 'http://localhost/api/meeting-types'),
   );
@@ -93,6 +96,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 

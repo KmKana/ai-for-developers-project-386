@@ -130,6 +130,7 @@ function assertContractChain() {
     );
   }
 
+  countMatches(typeSpec, /^enum ApiErrorCode\s*\{/m, 'enum ApiErrorCode в TypeSpec');
   for (const code of errorCodes) {
     countMatches(typeSpec, new RegExp(`^\\s+${code}:\\s*"${code}"`, 'm'), `код TypeSpec ${code}`);
     countMatches(openApi, new RegExp(`^\\s+- ${code}$`, 'm'), `код OpenAPI ${code}`);
@@ -137,6 +138,20 @@ function assertContractChain() {
   const sdkErrorCode = sdkTypes.match(/export type ApiErrorCode\s*=\s*([^;]+);/);
   if (!sdkErrorCode || errorCodes.some((code) => !sdkErrorCode[1].includes(`'${code}'`))) {
     throw new Error(`Некорректный ApiErrorCode в SDK: ${sdkErrorCode?.[1] ?? 'не найден'}`);
+  }
+  // Адаптер строит наборы кодов из runtime-значений сгенерированного enum.
+  const sdkErrorCodeValues = sdkTypes.match(
+    /export const ApiErrorCode\s*=\s*\{([\s\S]*?)\}\s*as const;/,
+  );
+  if (!sdkErrorCodeValues) {
+    throw new Error('В SDK отсутствуют runtime-значения ApiErrorCode');
+  }
+  for (const code of errorCodes) {
+    countMatches(
+      sdkErrorCodeValues[1],
+      new RegExp(`^\\s+${code}:\\s*'${code}'`, 'm'),
+      `runtime-значение ApiErrorCode ${code}`,
+    );
   }
 }
 

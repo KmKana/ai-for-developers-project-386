@@ -5,5 +5,10 @@ import { defineConfig } from '@hey-api/openapi-ts';
 export default defineConfig({
   input: '../api/openapi/openapi.yaml',
   output: 'src/sdk',
-  plugins: ['@hey-api/typescript', '@hey-api/sdk', '@hey-api/client-fetch'],
+  plugins: [
+    // Коды ошибок нужны и как значения: адаптер строит наборы из сгенерированного контракта.
+    { name: '@hey-api/typescript', enums: 'javascript' },
+    '@hey-api/sdk',
+    '@hey-api/client-fetch',
+  ],
 });
