@@ -37,7 +37,7 @@ export default function BookingsPage() {
 
       <div className="type-list">
         {bookings.map((booking) => (
-          <article key={booking.id} className="booking-row">
+          <article key={booking.id} className="booking-row" data-testid="booking-row">
             <div className="booking-when">
               <strong>{formatDateTime(booking.start)}</strong>
               <span className="muted small">
