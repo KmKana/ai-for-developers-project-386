@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { expect, test } from '@playwright/test';
 
-import { apiCreateMeetingType, apiListBookings, type MeetingType } from '../src/sdk';
+import { apiCreateMeetingType, apiListBookings, type Booking, type MeetingType } from '../src/sdk';
 import { client } from '../src/sdk/client.gen';
 import { backendUrl } from './config';
 
@@ -10,6 +10,7 @@ const CONFLICT_MESSAGE = 'Выбранное время уже занято. В�
 
 // E2E обращается к отдельному бэкенду через сгенерированный SDK. Адаптер
 // frontend/src/api.ts не импортируется: он настраивает клиент на origin браузера.
+// Тип Booking из SDK используется для проверки ответа без ручного описания полей.
 client.setConfig({ baseUrl: backendUrl });
 
 async function createMeetingType(name: string): Promise<MeetingType> {
@@ -99,7 +100,7 @@ test('гость записывается на слот, конфликт из �
   } = await apiListBookings();
   expect(bookingsResponse.status).toBe(200);
   expect(bookingsError).toBeUndefined();
-  const savedBookings = bookings ?? [];
+  const savedBookings: Booking[] = bookings ?? [];
   expect(savedBookings).toHaveLength(1);
   expect(savedBookings[0].meetingTypeId).toBe(meetingType.id);
   expect(savedBookings[0].guestName).toBe(guestName);

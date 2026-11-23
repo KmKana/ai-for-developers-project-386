@@ -10,6 +10,7 @@
  * - OFF_GRID: «Начало встречи должно быть на 30-минутной сетке. Выберите другое время.»;
  * - OUTSIDE_WORKING_HOURS: «Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени Владельца.»;
  * - OUT_OF_WINDOW: «Запись доступна на ближайшие 14 дней. Выберите другую дату.».
+ * Код `INTERNAL_ERROR` сопровождает 500 с сообщением «Внутренняя ошибка сервера».
  */
 export type ApiError = {
     /**
@@ -23,12 +24,12 @@ export type ApiError = {
 };
 
 /**
- * Все коды ошибок API: сценарий выбирается по коду, а текст берётся из message.
+ * Все коды ошибок API: клиент выбирает сценарий по коду, а текст берётся из message.
  */
-export type ApiErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_CONFLICT' | 'OFF_GRID' | 'OUTSIDE_WORKING_HOURS' | 'OUT_OF_WINDOW';
+export type ApiErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_CONFLICT' | 'OFF_GRID' | 'OUTSIDE_WORKING_HOURS' | 'OUT_OF_WINDOW' | 'INTERNAL_ERROR';
 
 /**
- * Все коды ошибок API: сценарий выбирается по коду, а текст берётся из message.
+ * Все коды ошибок API: клиент выбирает сценарий по коду, а текст берётся из message.
  */
 export const ApiErrorCode = {
     VALIDATION_ERROR: 'VALIDATION_ERROR',
@@ -36,7 +37,8 @@ export const ApiErrorCode = {
     SLOT_CONFLICT: 'SLOT_CONFLICT',
     OFF_GRID: 'OFF_GRID',
     OUTSIDE_WORKING_HOURS: 'OUTSIDE_WORKING_HOURS',
-    OUT_OF_WINDOW: 'OUT_OF_WINDOW'
+    OUT_OF_WINDOW: 'OUT_OF_WINDOW',
+    INTERNAL_ERROR: 'INTERNAL_ERROR'
 } as const;
 
 /**
@@ -140,7 +142,7 @@ export type MeetingTypeInput = {
 };
 
 /**
- * Свободный Слот, на который Гость может записаться.
+ * Свободный Слот, который можно занять: на него Гость может записаться.
  */
 export type Slot = {
     /**

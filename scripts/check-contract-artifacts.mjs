@@ -18,14 +18,26 @@ const operations = [
   'createBooking',
   'listBookings',
 ];
-const errorCodes = [
-  'VALIDATION_ERROR',
-  'MEETING_TYPE_NOT_FOUND',
-  'SLOT_CONFLICT',
-  'OFF_GRID',
-  'OUTSIDE_WORKING_HOURS',
-  'OUT_OF_WINDOW',
-];
+// Коды не дублируются в этой проверке: они выводятся из union в TypeSpec.
+// Так добавление кода в контракт автоматически попадает в трассировку цепочки.
+function typeSpecErrorCodes(typeSpec) {
+  const union = typeSpec.match(/union ApiErrorCode \{([\s\S]*?)^\}/m);
+  if (!union) {
+    throw new Error('В TypeSpec не найден union ApiErrorCode');
+  }
+  const codes = [...union[1].matchAll(/^\s+([A-Z][A-Z0-9_]*):\s*"([^"]+)"/gm)].map((match) => {
+    if (match[1] !== match[2]) {
+      throw new Error(`Несовпадение имени и значения кода: ${match[1]} / ${match[2]}`);
+    }
+    return match[1];
+  });
+  if (codes.length === 0 || new Set(codes).size !== codes.length) {
+    throw new Error(`Некорректный набор кодов в ApiErrorCode: ${codes.join(', ')}`);
+  }
+  return codes;
+}
+
+const errorCodes = typeSpecErrorCodes(read('api/tsp/main.tsp'));
 
 function run(command, args, cwd = root) {
   const result =

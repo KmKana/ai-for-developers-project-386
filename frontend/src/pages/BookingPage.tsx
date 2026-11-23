@@ -11,6 +11,7 @@ import {
   formatDuration,
   formatTime,
   isWeekend,
+  slotDurationMinutes,
 } from '../util/format';
 
 /** Страница записи: календарь на 14 дней, слоты и форма гостя. */
@@ -63,13 +64,13 @@ export default function BookingPage() {
     return map;
   }, [slots]);
 
-  // Дни окна показываются всегда, даже если сервер не вернул для них Слоты
-  // (выходные и полностью занятые дни).
+  // Календарь не зависит от ответа SDK: показываем все 14 дней окна, включая
+  // выходные и полностью занятые дни, даже если сервер не вернул для них Слоты.
   const days = useMemo(() => bookingWindowDays(), []);
 
   useEffect(() => {
     if (days.length > 0 && (selectedDay === null || !days.includes(selectedDay))) {
-      setSelectedDay(days[0]);
+      setSelectedDay(days.find((day) => !isWeekend(day)) ?? days[0]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
@@ -128,7 +129,7 @@ export default function BookingPage() {
               </dd>
             </div>
           </dl>
-          <Link className="btn btn-secondary" to="/">
+          <Link className="btn btn-secondary" to="/catalog">
             Записаться ещё раз
           </Link>
         </div>
@@ -186,13 +187,15 @@ export default function BookingPage() {
           {days.map((day) => {
             const parts = dayParts(`${day}T09:00:00+05:00`);
             const active = day === selectedDay;
+            const weekend = isWeekend(day);
             return (
               <button
                 key={day}
                 type="button"
                 data-testid="day-chip"
                 data-day={day}
-                className={`day-chip${active ? ' active' : ''}${isWeekend(day) ? ' weekend' : ''}`}
+                disabled={weekend}
+                className={`day-chip${active ? ' active' : ''}${weekend ? ' weekend' : ''}`}
                 onClick={() => {
                   setSelectedDay(day);
                   setSelectedSlot(null);
@@ -222,7 +225,7 @@ export default function BookingPage() {
                   className={`slot${active ? ' active' : ''}`}
                   onClick={() => setSelectedSlot(slot)}
                 >
-                  {formatTime(slot.start)}
+                  {formatTime(slot.start)} · {formatDuration(slotDurationMinutes(slot))}
                 </button>
               );
             })}

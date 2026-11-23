@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchBookings } from '../api';
 import type { Booking } from '../sdk';
 import { formatDateTime, formatDuration } from '../util/format';
 
-/** Как часто список Записей проверяет новые брони без участия Владельца. */
+/**
+ * Как часто список Записей проверяет новые брони без участия Владельца:
+ * интервал обновления списка Владельца без перезагрузки страницы.
+ */
 const REFRESH_MS = 5_000;
 
 /** Страница владельца: предстоящие встречи по всем типам. */
@@ -13,43 +16,54 @@ export default function BookingsPage() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    let inFlight = false;
+  const active = useRef(true);
+  const inFlight = useRef(false);
 
-    const refresh = async () => {
-      if (inFlight) {
-        return;
+  // Не запускаем новый запрос, пока предыдущий ещё выполняется, и не меняем
+  // состояние компонента после размонтирования.
+  const refresh = useCallback(async () => {
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
+    try {
+      const list = await fetchBookings();
+      if (active.current) {
+        setBookings(list);
+        setError(null);
+        setLoaded(true);
       }
-      inFlight = true;
-      try {
-        const list = await fetchBookings();
-        if (active) {
-          setBookings(list);
-          setError(null);
-          setLoaded(true);
-        }
-      } catch (e) {
-        if (active) {
-          setError(e instanceof Error ? e.message : 'Ошибка загрузки');
-          setLoaded(true);
-        }
-      } finally {
-        inFlight = false;
+    } catch (e) {
+      if (active.current) {
+        setError(e instanceof Error ? e.message : 'Не удалось загрузить записи');
+        setLoaded(true);
+      }
+    } finally {
+      inFlight.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    active.current = true;
+    void refresh();
+
+    const onFocus = () => void refresh();
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        void refresh();
       }
     };
-
-    void refresh();
     const timer = window.setInterval(() => void refresh(), REFRESH_MS);
-    const onFocus = () => void refresh();
-    window.addEventListener('focus', onFocus);
 
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      active = false;
+      active.current = false;
       window.clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
+  }, [refresh]);
 
   return (
     <div className="page">

@@ -20,16 +20,6 @@ public class BookingService {
 
   private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
-  private static final String SLOT_CONFLICT_CODE = "SLOT_CONFLICT";
-  private static final String SLOT_CONFLICT_MESSAGE =
-      "Выбранное время уже занято. Выберите другой слот";
-  private static final String OFF_GRID_MESSAGE =
-      "Начало встречи должно быть на 30-минутной сетке. Выберите другое время.";
-  private static final String OUTSIDE_WORKING_HOURS_MESSAGE =
-      "Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.";
-  private static final String OUT_OF_WINDOW_MESSAGE =
-      "Запись доступна на ближайшие 14 дней. Выберите другую дату.";
-
   private final InMemoryStore store;
   private final BookingRules rules;
 
@@ -41,23 +31,25 @@ public class BookingService {
   public BookingDto book(BookingInputDto input) {
     String meetingTypeId = input.meetingTypeId() == null ? "" : input.meetingTypeId().trim();
     if (meetingTypeId.isEmpty()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "meetingTypeId обязателен");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "meetingTypeId обязателен");
     }
     MeetingType type = store.findMeetingType(meetingTypeId);
     if (type == null) {
       throw new ApiRequestException(
-          400, "MEETING_TYPE_NOT_FOUND", "Тип встречи не найден: " + input.meetingTypeId());
+          400,
+          ApiErrorCode.MEETING_TYPE_NOT_FOUND,
+          "Тип встречи не найден: " + input.meetingTypeId());
     }
     if (input.start() == null) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Время начала обязательно");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Время начала обязательно");
     }
     String guestName = input.guestName() == null ? "" : input.guestName().trim();
     if (guestName.isEmpty()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Имя гостя обязательно");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Имя гостя обязательно");
     }
     String guestEmail = input.guestEmail() == null ? "" : input.guestEmail().trim();
     if (guestEmail.isEmpty() || !EMAIL.matcher(guestEmail).matches()) {
-      throw new ApiRequestException(400, "VALIDATION_ERROR", "Некорректный email гостя");
+      throw new ApiRequestException(400, ApiErrorCode.VALIDATION_ERROR, "Некорректный email гостя");
     }
 
     Instant startInstant = input.start().toInstant();
@@ -71,21 +63,21 @@ public class BookingService {
 
     if (date.isBefore(rules.currentWindowStart())
         || date.isAfter(rules.currentWindowEndInclusive())) {
-      throw new ApiRequestException(409, "OUT_OF_WINDOW", OUT_OF_WINDOW_MESSAGE);
+      throw new ApiRequestException(409, ApiErrorCode.OUT_OF_WINDOW);
     }
     if (!BookingRules.WORK_DAYS.contains(date.getDayOfWeek())) {
-      throw new ApiRequestException(409, "OUTSIDE_WORKING_HOURS", OUTSIDE_WORKING_HOURS_MESSAGE);
+      throw new ApiRequestException(409, ApiErrorCode.OUTSIDE_WORKING_HOURS);
     }
     if (startMinutes < BookingRules.WORK_START_MINUTES
         || startMinutes + durationMinutes > BookingRules.WORK_END_MINUTES) {
-      throw new ApiRequestException(409, "OUTSIDE_WORKING_HOURS", OUTSIDE_WORKING_HOURS_MESSAGE);
+      throw new ApiRequestException(409, ApiErrorCode.OUTSIDE_WORKING_HOURS);
     }
     boolean onGrid =
         (startMinutes - BookingRules.WORK_START_MINUTES) % BookingRules.STEP_MINUTES == 0
             && time.getSecond() == 0
             && time.getNano() == 0;
     if (!onGrid) {
-      throw new ApiRequestException(409, "OFF_GRID", OFF_GRID_MESSAGE);
+      throw new ApiRequestException(409, ApiErrorCode.OFF_GRID);
     }
 
     // Единственная проверка доступности выполняется под монитором хранилища вместе с созданием
@@ -100,7 +92,7 @@ public class BookingService {
   }
 
   private static ApiRequestException slotConflict() {
-    return new ApiRequestException(409, SLOT_CONFLICT_CODE, SLOT_CONFLICT_MESSAGE);
+    return new ApiRequestException(409, ApiErrorCode.SLOT_CONFLICT);
   }
 
   public java.util.List<BookingDto> upcoming() {

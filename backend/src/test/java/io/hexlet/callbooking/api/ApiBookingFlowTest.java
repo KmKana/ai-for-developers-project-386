@@ -27,8 +27,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 /**
- * Сквозные проверки API по контракту: создание типа встречи, свободные слоты, бронирование,
- * пересечения разных типов и список предстоящих встреч владельца.
+ * Сквозные проверки API по контракту: создание типа встречи, свободные Слоты, запись, пересечения
+ * разных типов и список предстоящих встреч владельца.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -364,6 +364,7 @@ class ApiBookingFlowTest {
         .andExpect(jsonPath("$.code").value("OUTSIDE_WORKING_HOURS"));
 
     // Сегодняшний день — вне окна (окно начинается с завтрашнего).
+    assertThat(rules.currentWindowStart()).isEqualTo(LocalDate.now(clock).plusDays(1));
     mvc.perform(
             post("/api/bookings")
                 .contentType(APPLICATION_JSON)
@@ -465,7 +466,7 @@ class ApiBookingFlowTest {
     assertThat(after).hasSize(before.size() - 1);
     assertThat(after.stream().map(s -> s.get("start"))).doesNotContain(booked);
 
-    // Другой тип тоже не может занять это время: 30-минутная бронь
+    // Другой тип тоже не может занять это время: 30-минутная Запись
     // перекрывает первые слоты 60-минутного типа.
     String hourType = createType("Час обзора", "60 минут", 60);
     List<Map<String, Object>> hourSlots = slots(hourType);

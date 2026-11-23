@@ -12,6 +12,16 @@ public class ApiRequestException extends RuntimeException {
     this.status = status;
   }
 
+  /** Код из контракта с фиксированным сообщением. */
+  public ApiRequestException(int status, ApiErrorCode code) {
+    this(status, code.value(), code.defaultMessage());
+  }
+
+  /** Код из контракта с сообщением, зависящим от запроса. */
+  public ApiRequestException(int status, ApiErrorCode code, String message) {
+    this(status, code.value(), message);
+  }
+
   public String code() {
     return code;
   }

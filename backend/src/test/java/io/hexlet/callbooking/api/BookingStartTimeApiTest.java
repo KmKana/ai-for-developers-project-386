@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hexlet.callbooking.core.FixedClockConfig;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -81,23 +80,10 @@ class BookingStartTimeApiTest {
   }
 
   private String createType() throws Exception {
-    String body =
-        om.writeValueAsString(
-            Map.of("name", "Обзор", "description", "Короткий созвон", "durationMinutes", 30));
-    String response =
-        mvc.perform(post("/api/meeting-types").contentType(APPLICATION_JSON).content(body))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return om.readTree(response).get("id").asText();
+    return ApiTestFixtures.createType(mvc, om, "Обзор", "Короткий созвон", 30);
   }
 
   private static String booking(String typeId, String start) {
-    return """
-        {"meetingTypeId":"%s","start":"%s",
-         "guestName":"Гость","guestEmail":"guest@example.com"}
-        """
-        .formatted(typeId, start);
+    return ApiTestFixtures.bookingJson(typeId, start, "Гость", "guest@example.com");
   }
 }

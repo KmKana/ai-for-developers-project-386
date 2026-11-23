@@ -1,19 +1,14 @@
 package io.hexlet.callbooking.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hexlet.callbooking.core.FixedClockConfig;
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -23,7 +18,10 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** Защита календаря Владельца от дублирования Записей: Слоты [start, end) полуоткрытые. */
+/**
+ * Защита календаря Владельца от дублирования Записей и двойной записи на один Слот: Слоты [start,
+ * end) полуоткрытые.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(FixedClockConfig.class)
@@ -114,34 +112,11 @@ class BookingConflictApiTest {
 
   private ResultActions book(String typeId, String start, String guestName, String guestEmail)
       throws Exception {
-    return mvc.perform(
-        post("/api/bookings")
-            .contentType(APPLICATION_JSON)
-            .content(
-                objectMapper.writeValueAsString(
-                    Map.of(
-                        "meetingTypeId", typeId,
-                        "start", start,
-                        "guestName", guestName,
-                        "guestEmail", guestEmail))));
+    return ApiTestFixtures.book(mvc, typeId, start, guestName, guestEmail);
   }
 
   private String createType(String name, int durationMinutes) throws Exception {
-    String response =
-        mvc.perform(
-                post("/api/meeting-types")
-                    .contentType(APPLICATION_JSON)
-                    .content(
-                        objectMapper.writeValueAsString(
-                            Map.of(
-                                "name", name,
-                                "description", "Описание",
-                                "durationMinutes", durationMinutes))))
-            .andExpect(status().isCreated())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return objectMapper.readTree(response).get("id").asText();
+    return ApiTestFixtures.createType(mvc, objectMapper, name, durationMinutes);
   }
 
   private List<String> slotStarts(String typeId) throws Exception {
@@ -155,9 +130,6 @@ class BookingConflictApiTest {
   }
 
   private static String iso(int hour, int minute) {
-    return FIRST_DAY
-        .atTime(LocalTime.of(hour, minute))
-        .atZone(FixedClockConfig.OWNER_ZONE)
-        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    return ApiTestFixtures.iso(FIRST_DAY.toString(), hour, minute);
   }
 }

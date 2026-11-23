@@ -4,14 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { apiListMeetingTypes } from '../sdk';
 import type { MeetingType } from '../sdk';
+import { response } from '../test/sdkMocks';
 import CatalogPage from './CatalogPage';
 
 vi.mock('../sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../sdk')>();
-  return {
-    ...actual,
-    apiListMeetingTypes: vi.fn(),
-  };
+  const { mockSdkModule } = await import('../test/sdkMocks');
+  return mockSdkModule(importOriginal, ['apiListMeetingTypes']);
 });
 
 const catalog: MeetingType[] = [
@@ -30,12 +28,9 @@ afterEach(() => {
 
 describe('Каталог типов встреч', () => {
   it('показывает данные из ответа сгенерированного SDK', async () => {
-    vi.mocked(apiListMeetingTypes).mockResolvedValue({
-      data: catalog,
-      error: undefined,
-      request: new Request('http://localhost/api/meeting-types'),
-      response: new Response(JSON.stringify(catalog), { status: 200 }),
-    });
+    vi.mocked(apiListMeetingTypes).mockResolvedValue(
+      response(catalog, 'http://localhost/api/meeting-types'),
+    );
 
     render(
       <MemoryRouter>

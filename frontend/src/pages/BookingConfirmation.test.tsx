@@ -4,16 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiCreateBooking, apiListAvailableSlots, apiListMeetingTypes } from '../sdk';
 import type { ApiError, Booking, MeetingType, Slot } from '../sdk';
+import { failure, response } from '../test/sdkMocks';
 import BookingPage from './BookingPage';
 
 vi.mock('../sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../sdk')>();
-  return {
-    ...actual,
-    apiListMeetingTypes: vi.fn(),
-    apiListAvailableSlots: vi.fn(),
-    apiCreateBooking: vi.fn(),
-  };
+  const { mockSdkModule } = await import('../test/sdkMocks');
+  return mockSdkModule(importOriginal, [
+    'apiListMeetingTypes',
+    'apiListAvailableSlots',
+    'apiCreateBooking',
+  ]);
 });
 
 const types: MeetingType[] = [
@@ -38,24 +38,6 @@ const booking: Booking = {
   createdAt: '2026-03-10T11:00:00+05:00',
 };
 
-function response<T>(data: T, url: string, status = 200) {
-  return {
-    data,
-    error: undefined,
-    request: new Request(url),
-    response: new Response(JSON.stringify(data), { status }),
-  };
-}
-
-function failure(error: ApiError, url: string, status: number) {
-  return {
-    data: undefined,
-    error,
-    request: new Request(url),
-    response: new Response(JSON.stringify(error), { status }),
-  };
-}
-
 function renderBookingPage() {
   return render(
     <MemoryRouter initialEntries={['/book/type-intro']}>
@@ -67,7 +49,7 @@ function renderBookingPage() {
 }
 
 async function chooseSlotAndFillForm() {
-  fireEvent.click(await screen.findByRole('button', { name: '10:00' }, { timeout: 5000 }));
+  fireEvent.click(await screen.findByRole('button', { name: '10:00 · 30 мин' }, { timeout: 5000 }));
   fireEvent.change(screen.getByPlaceholderText('Как вас зовут?'), {
     target: { value: 'Иван Петров' },
   });
@@ -86,18 +68,19 @@ function mockCatalog() {
 
 beforeEach(() => {
   // 10 марта 2026 года: окно записи — 11–24 марта, включая выходные 14–15 и 21–22.
-  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
   vi.setSystemTime(new Date('2026-03-10T06:00:00Z'));
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.useRealTimers();
   vi.clearAllMocks();
 });
 
 describe('Подтверждение Записи на Странице записи', () => {
-  it('показывает ответ SDK и передаёт в SDK только start', async () => {
+  it('показывает ответ SDK, длительность Слота и ведёт в каталог за новой записью', async () => {
     mockCatalog();
     vi.mocked(apiCreateBooking).mockResolvedValue(
       response(booking, 'http://localhost/api/bookings', 201),
@@ -112,6 +95,9 @@ describe('Подтверждение Записи на Странице запи
     expect(screen.getByText('Знакомство')).toBeTruthy();
     expect(screen.getByText(/11 марта в 10:00 – 10:30 \(Asia\/Almaty\)/)).toBeTruthy();
     expect(screen.getByText(/Иван Петров · ivan@example.com/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Записаться ещё раз' }).getAttribute('href')).toBe(
+      '/catalog',
+    );
     expect(apiCreateBooking).toHaveBeenCalledWith({
       body: {
         meetingTypeId: 'type-intro',
@@ -126,7 +112,7 @@ describe('Подтверждение Записи на Странице запи
     mockCatalog();
     vi.mocked(apiCreateBooking).mockResolvedValue(
       failure(
-        { code: 'VALIDATION_ERROR', message: 'Некорректный email гостя' },
+        { code: 'VALIDATION_ERROR', message: 'Некорректный email гостя' } satisfies ApiError,
         'http://localhost/api/bookings',
         400,
       ),
