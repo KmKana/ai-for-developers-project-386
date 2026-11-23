@@ -15,11 +15,9 @@ FROM maven:3.9.6-eclipse-temurin-21 AS backend
 WORKDIR /app/backend
 
 COPY backend/pom.xml ./
-RUN mvn -B -DskipTests dependency:go-offline
-
 COPY backend/src ./src
 COPY --from=frontend /app/frontend/dist ./src/main/resources/static
-RUN mvn -B -DskipTests package
+RUN mvn -B -DskipTests -Dmaven.test.skip=true package
 
 # --- Рантайм: один процесс, один порт ------------------------------------
 FROM eclipse-temurin:21-jre-jammy
