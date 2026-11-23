@@ -18,14 +18,14 @@ const operations = [
   'createBooking',
   'listBookings',
 ];
-// Коды не дублируются в этой проверке: они выводятся из union в TypeSpec.
+// Коды не дублируются в этой проверке: они выводятся из enum в TypeSpec.
 // Так добавление кода в контракт автоматически попадает в трассировку цепочки.
 function typeSpecErrorCodes(typeSpec) {
-  const union = typeSpec.match(/union ApiErrorCode \{([\s\S]*?)^\}/m);
-  if (!union) {
-    throw new Error('В TypeSpec не найден union ApiErrorCode');
+  const errorEnum = typeSpec.match(/enum ApiErrorCode \{([\s\S]*?)^\}/m);
+  if (!errorEnum) {
+    throw new Error('В TypeSpec не найден enum ApiErrorCode');
   }
-  const codes = [...union[1].matchAll(/^\s+([A-Z][A-Z0-9_]*):\s*"([^"]+)"/gm)].map((match) => {
+  const codes = [...errorEnum[1].matchAll(/^\s+([A-Z][A-Z0-9_]*):\s*"([^"]+)"/gm)].map((match) => {
     if (match[1] !== match[2]) {
       throw new Error(`Несовпадение имени и значения кода: ${match[1]} / ${match[2]}`);
     }

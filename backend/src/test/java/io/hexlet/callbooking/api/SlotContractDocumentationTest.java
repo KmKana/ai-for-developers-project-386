@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
-/** Контракт должен явно описывать коды ошибок для GET /api/slots и общий union ApiErrorCode. */
+/** Контракт должен явно описывать коды ошибок для GET /api/slots и общий тип ApiErrorCode. */
 class SlotContractDocumentationTest {
 
   @Test
