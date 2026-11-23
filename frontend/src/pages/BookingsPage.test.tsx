@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiListBookings } from '../sdk';
 import type { Booking } from '../sdk';
@@ -36,9 +36,23 @@ const bookings: Booking[] = [
   },
 ];
 
+function bookingResponse(data: Booking[]) {
+  return {
+    data,
+    error: undefined,
+    request: new Request('http://localhost/api/bookings'),
+    response: new Response(JSON.stringify(data), { status: 200 }),
+  };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.useRealTimers();
+  vi.resetAllMocks();
 });
 
 describe('Список предстоящих Записей Владельца', () => {
@@ -67,5 +81,41 @@ describe('Список предстоящих Записей Владельца'
     expect(screen.getByText('12 марта в 09:00')).toBeTruthy();
     expect(screen.getByText('1 ч')).toBeTruthy();
     expect(screen.getByText('Создано: 10 марта в 12:00')).toBeTruthy();
+  });
+
+  it('показывает новую Запись без ручного обновления страницы', async () => {
+    vi.mocked(apiListBookings)
+      .mockResolvedValueOnce(bookingResponse([]))
+      .mockResolvedValueOnce(bookingResponse([bookings[0]]));
+
+    render(<BookingsPage />);
+
+    expect(await screen.findByText(/Пока нет записей/)).toBeTruthy();
+    expect(apiListBookings).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(await screen.findByText('Иван Петров')).toBeTruthy();
+    expect(apiListBookings).toHaveBeenCalledTimes(2);
+  });
+
+  it('не запускает новый запрос, пока предыдущий ещё выполняется', async () => {
+    let resolveFirst: (value: ReturnType<typeof bookingResponse>) => void = () => {};
+    const pending = new Promise<ReturnType<typeof bookingResponse>>((resolve) => {
+      resolveFirst = resolve;
+    });
+    vi.mocked(apiListBookings)
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue(bookingResponse(bookings));
+
+    render(<BookingsPage />);
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(apiListBookings).toHaveBeenCalledOnce();
+
+    resolveFirst(bookingResponse([]));
+    expect(await screen.findByText(/Пока нет записей/)).toBeTruthy();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(apiListBookings).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('Иван Петров')).toBeTruthy();
   });
 });

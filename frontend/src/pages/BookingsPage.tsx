@@ -4,6 +4,9 @@ import { fetchBookings } from '../api';
 import type { Booking } from '../sdk';
 import { formatDateTime, formatDuration } from '../util/format';
 
+/** Как часто список Записей проверяет новые брони без участия Владельца. */
+const REFRESH_MS = 5_000;
+
 /** Страница владельца: предстоящие встречи по всем типам. */
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -11,15 +14,41 @@ export default function BookingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchBookings()
-      .then((list) => {
-        setBookings(list);
-        setLoaded(true);
-      })
-      .catch((e: Error) => {
-        setError(e.message);
-        setLoaded(true);
-      });
+    let active = true;
+    let inFlight = false;
+
+    const refresh = async () => {
+      if (inFlight) {
+        return;
+      }
+      inFlight = true;
+      try {
+        const list = await fetchBookings();
+        if (active) {
+          setBookings(list);
+          setError(null);
+          setLoaded(true);
+        }
+      } catch (e) {
+        if (active) {
+          setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+          setLoaded(true);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), REFRESH_MS);
+    const onFocus = () => void refresh();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   return (
