@@ -101,6 +101,8 @@ describe('Страница записи', () => {
     expect(saturday?.className).toContain('weekend');
     fireEvent.click(saturday!);
     expect(screen.queryAllByTestId('slot-button')).toHaveLength(0);
-    expect(screen.getByText('В этот день свободных слотов нет — выберите другой день.')).toBeTruthy();
+    expect(
+      screen.getByText('В этот день свободных слотов нет — выберите другой день.'),
+    ).toBeTruthy();
   });
 });

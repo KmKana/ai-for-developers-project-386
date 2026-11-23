@@ -23,7 +23,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** Защита календаря Владельца от двойного бронирования: интервалы [start, end). */
+/** Защита календаря Владельца от дублирования Записей: Слоты [start, end) полуоткрытые. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(FixedClockConfig.class)
@@ -38,7 +38,7 @@ class BookingConflictApiTest {
 
   @Autowired private MockMvc mvc;
 
-  @Autowired private ObjectMapper om;
+  @Autowired private ObjectMapper objectMapper;
 
   @Test
   void sameStartReturnsSlotConflictAndListingDoesNotReserveTime() throws Exception {
@@ -46,7 +46,7 @@ class BookingConflictApiTest {
     String start = iso(10, 0);
 
     assertThat(slotStarts(typeId)).contains(start);
-    // Просмотр Слотов дважды не должен занимать время: следующая бронь успешна.
+    // Просмотр Слотов дважды не должен занимать время: следующая Запись создаётся успешно.
     slotStarts(typeId);
 
     book(typeId, start, "Гость 1", "guest1@example.com").andExpect(status().isCreated());
@@ -61,7 +61,7 @@ class BookingConflictApiTest {
     String halfHourType = createType("Знакомство", 30);
 
     book(hourType, iso(10, 0), "Гость 1", "guest1@example.com").andExpect(status().isCreated());
-    // 10:30–11:00 целиком внутри занятого интервала 10:00–11:00.
+    // 10:30–11:00 целиком внутри занятого Слота 10:00–11:00.
     expectSlotConflict(book(halfHourType, iso(10, 30), "Гость 2", "guest2@example.com"));
   }
 
@@ -90,8 +90,8 @@ class BookingConflictApiTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    assertThat(om.readTree(response)).hasSize(3);
-    assertThat(om.readTree(response).findValuesAsText("start"))
+    assertThat(objectMapper.readTree(response)).hasSize(3);
+    assertThat(objectMapper.readTree(response).findValuesAsText("start"))
         .containsExactly(iso(9, 30), iso(10, 0), iso(11, 0));
   }
 
@@ -118,7 +118,7 @@ class BookingConflictApiTest {
         post("/api/bookings")
             .contentType(APPLICATION_JSON)
             .content(
-                om.writeValueAsString(
+                objectMapper.writeValueAsString(
                     Map.of(
                         "meetingTypeId", typeId,
                         "start", start,
@@ -132,7 +132,7 @@ class BookingConflictApiTest {
                 post("/api/meeting-types")
                     .contentType(APPLICATION_JSON)
                     .content(
-                        om.writeValueAsString(
+                        objectMapper.writeValueAsString(
                             Map.of(
                                 "name", name,
                                 "description", "Описание",
@@ -141,7 +141,7 @@ class BookingConflictApiTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return om.readTree(response).get("id").asText();
+    return objectMapper.readTree(response).get("id").asText();
   }
 
   private List<String> slotStarts(String typeId) throws Exception {
@@ -151,7 +151,7 @@ class BookingConflictApiTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return om.readTree(response).findValuesAsText("start");
+    return objectMapper.readTree(response).findValuesAsText("start");
   }
 
   private static String iso(int hour, int minute) {
