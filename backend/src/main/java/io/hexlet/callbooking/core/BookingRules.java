@@ -57,14 +57,4 @@ public class BookingRules {
   public LocalDate currentWindowEndInclusive() {
     return currentWindowStart().plusDays(WINDOW_DAYS - 1);
   }
-
-  /** Первый день окна по системным часам. Совместимость с тестами без внедрения часов. */
-  public static LocalDate windowStart() {
-    return LocalDate.now(ZONE).plusDays(1);
-  }
-
-  /** Последний день окна по системным часам. Совместимость с тестами без внедрения часов. */
-  public static LocalDate windowEndInclusive() {
-    return windowStart().plusDays(WINDOW_DAYS - 1);
-  }
 }
