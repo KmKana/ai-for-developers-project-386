@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { createBooking, fetchMeetingTypes, fetchSlots, isConflict } from '../api';
 import type { Booking, MeetingType, Slot } from '../sdk';
 import {
+  bookingWindowDays,
   dayKey,
   dayParts,
   formatDateTime,
@@ -62,7 +63,9 @@ export default function BookingPage() {
     return map;
   }, [slots]);
 
-  const days = useMemo(() => [...byDay.keys()].sort(), [byDay]);
+  // Дни окна показываются всегда, даже если сервер не вернул для них Слоты
+  // (выходные и полностью занятые дни).
+  const days = useMemo(() => bookingWindowDays(), []);
 
   useEffect(() => {
     if (days.length > 0 && (selectedDay === null || !days.includes(selectedDay))) {
@@ -179,7 +182,6 @@ export default function BookingPage() {
 
       <section className="booking-main">
         <h3 className="step-title">1. Выберите день</h3>
-        {days.length === 0 && <div className="empty">Свободных дней в ближайшие 14 дней нет.</div>}
         <div className="day-strip">
           {days.map((day) => {
             const parts = dayParts(`${day}T09:00:00+05:00`);
