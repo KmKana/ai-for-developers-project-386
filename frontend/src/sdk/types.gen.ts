@@ -3,12 +3,12 @@
 /**
  * Единый формат ошибки API: машинный код и понятное сообщение.
  *
- * `SLOT_CONFLICT` — единственный код для любого пересечения интервалов
+ * `SLOT_CONFLICT` — единственный код для любого пересечения Слотов
  * [start, end), независимо от совпадения старта и от Типа встречи.
  * Сообщения календарных кодов 409 фиксированы:
  * - SLOT_CONFLICT: «Выбранное время уже занято. Выберите другой слот»;
  * - OFF_GRID: «Начало встречи должно быть на 30-минутной сетке. Выберите другое время.»;
- * - OUTSIDE_WORKING_HOURS: «Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени владельца.»;
+ * - OUTSIDE_WORKING_HOURS: «Встреча должна проходить в рабочие дни с 09:00 до 18:00 по времени Владельца.»;
  * - OUT_OF_WINDOW: «Запись доступна на ближайшие 14 дней. Выберите другую дату.».
  */
 export type ApiError = {
@@ -23,12 +23,24 @@ export type ApiError = {
 };
 
 /**
- * Все коды ошибок API: клиент выбирает сценарий по коду, а текст берёт из message.
+ * Все коды ошибок API: сценарий выбирается по коду, а текст берётся из message.
  */
 export type ApiErrorCode = 'VALIDATION_ERROR' | 'MEETING_TYPE_NOT_FOUND' | 'SLOT_CONFLICT' | 'OFF_GRID' | 'OUTSIDE_WORKING_HOURS' | 'OUT_OF_WINDOW';
 
 /**
- * Запись гостя на встречу.
+ * Все коды ошибок API: сценарий выбирается по коду, а текст берётся из message.
+ */
+export const ApiErrorCode = {
+    VALIDATION_ERROR: 'VALIDATION_ERROR',
+    MEETING_TYPE_NOT_FOUND: 'MEETING_TYPE_NOT_FOUND',
+    SLOT_CONFLICT: 'SLOT_CONFLICT',
+    OFF_GRID: 'OFF_GRID',
+    OUTSIDE_WORKING_HOURS: 'OUTSIDE_WORKING_HOURS',
+    OUT_OF_WINDOW: 'OUT_OF_WINDOW'
+} as const;
+
+/**
+ * Запись Гостя на встречу.
  */
 export type Booking = {
     /**
@@ -48,15 +60,15 @@ export type Booking = {
      */
     start: string;
     /**
-     * Конец встречи: начало плюс длительность типа встречи.
+     * Конец встречи: начало плюс длительность Типа встречи.
      */
     end: string;
     /**
-     * Имя гостя.
+     * Имя Гостя.
      */
     guestName: string;
     /**
-     * Email гостя.
+     * Email Гостя.
      */
     guestEmail: string;
     /**
@@ -74,15 +86,15 @@ export type BookingInput = {
      */
     meetingTypeId: string;
     /**
-     * Начало встречи: свободный старт из списка слотов (RFC 3339).
+     * Начало встречи: свободный старт из списка Слотов (RFC 3339).
      */
     start: string;
     /**
-     * Имя гостя.
+     * Имя Гостя.
      */
     guestName: string;
     /**
-     * Email гостя.
+     * Email Гостя.
      */
     guestEmail: string;
 };
@@ -128,15 +140,15 @@ export type MeetingTypeInput = {
 };
 
 /**
- * Свободный интервал, который можно занять.
+ * Свободный Слот, на который Гость может записаться.
  */
 export type Slot = {
     /**
-     * Начало слота (RFC 3339 с часовым поясом Asia/Almaty).
+     * Начало Слота (RFC 3339 с часовым поясом Asia/Almaty).
      */
     start: string;
     /**
-     * Конец слота: начало плюс длительность типа встречи.
+     * Конец Слота: начало плюс длительность Типа встречи.
      */
     end: string;
 };
