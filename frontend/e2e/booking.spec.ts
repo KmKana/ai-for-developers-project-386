@@ -1,36 +1,32 @@
 import { randomUUID } from 'node:crypto';
 
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
+import { apiCreateMeetingType, apiListBookings, type MeetingType } from '../src/sdk';
+import { client } from '../src/sdk/client.gen';
 import { backendUrl } from './config';
 
 const CONFLICT_MESSAGE = 'Выбранное время уже занято. Выберите другой слот';
 
-interface MeetingType {
-  id: string;
-  name: string;
-}
+// E2E обращается к отдельному бэкенду через сгенерированный SDK. Адаптер
+// frontend/src/api.ts не импортируется: он настраивает клиент на origin браузера.
+client.setConfig({ baseUrl: backendUrl });
 
-interface Booking {
-  id: string;
-  meetingTypeId: string;
-  guestName: string;
-  start: string;
-}
-
-async function createMeetingType(request: APIRequestContext, name: string): Promise<MeetingType> {
-  const response = await request.post(`${backendUrl}/api/meeting-types`, {
-    data: { name, description: 'E2E: полный путь гостя', durationMinutes: 30 },
+async function createMeetingType(name: string): Promise<MeetingType> {
+  const { data, error, response } = await apiCreateMeetingType({
+    body: { name, description: 'E2E: полный путь Гостя', durationMinutes: 30 },
   });
-  const body = await response.text();
-  expect(response.status(), body).toBe(201);
-  return JSON.parse(body) as MeetingType;
+  expect(response.status(), `POST /api/meeting-types: ${JSON.stringify(error)}`).toBe(201);
+  expect(error).toBeUndefined();
+  if (!data) {
+    throw new Error('Сервер не вернул созданный Тип встречи');
+  }
+  return data;
 }
 
 test('гость записывается на слот, конфликт из устаревшей вкладки не создаёт вторую запись', async ({
   page,
   context,
-  request,
 }) => {
   const suffix = randomUUID();
   const typeName = `E2E встреча ${suffix}`;
@@ -39,7 +35,7 @@ test('гость записывается на слот, конфликт из �
   const staleGuestName = `Гость со старой страницы ${suffix}`;
   const staleGuestEmail = `stale-${suffix}@example.com`;
 
-  const meetingType = await createMeetingType(request, typeName);
+  const meetingType = await createMeetingType(typeName);
 
   // Вторая вкладка заранее загружает Слоты и остаётся с устаревшим состоянием.
   const stalePage = await context.newPage();
@@ -51,7 +47,7 @@ test('гость записывается на слот, конфликт из �
     .click();
   const days = stalePage.getByTestId('day-chip');
   await expect(days.first()).toBeVisible();
-  expect(await days.count()).toBeLessThanOrEqual(14);
+  expect(await days.count()).toBe(14);
   const staleDay = days.first();
   const dayKey = await staleDay.getAttribute('data-day');
   expect(dayKey).not.toBeNull();
@@ -89,20 +85,25 @@ test('гость записывается на слот, конфликт из �
   await expect(ownerRow).toContainText(typeName);
   await expect(ownerRow).toContainText(guestEmail);
 
-  // Устаревшая вкладка отправляет тот же интервал после успешной брони.
+  // Устаревшая вкладка отправляет тот же Слот после успешной Записи.
   await stalePage.getByTestId('submit-booking').click();
   await expect(stalePage.getByTestId('booking-conflict')).toHaveText(CONFLICT_MESSAGE);
   await expect(
     stalePage.locator(`[data-testid="slot-button"][data-start="${staleStart}"]`),
   ).toHaveCount(0);
 
-  const response = await request.get(`${backendUrl}/api/bookings`);
-  expect(response.status()).toBe(200);
-  const bookings = (await response.json()) as Booking[];
-  expect(bookings).toHaveLength(1);
-  expect(bookings[0].meetingTypeId).toBe(meetingType.id);
-  expect(bookings[0].guestName).toBe(guestName);
-  expect(bookings[0].start).toBe(staleStart);
+  const {
+    data: bookings,
+    error: bookingsError,
+    response: bookingsResponse,
+  } = await apiListBookings();
+  expect(bookingsResponse.status()).toBe(200);
+  expect(bookingsError).toBeUndefined();
+  const savedBookings = bookings ?? [];
+  expect(savedBookings).toHaveLength(1);
+  expect(savedBookings[0].meetingTypeId).toBe(meetingType.id);
+  expect(savedBookings[0].guestName).toBe(guestName);
+  expect(savedBookings[0].start).toBe(staleStart);
 
   // После конфликта доступен другой актуальный Слот, вторая Запись не создана.
   const freshSlots = stalePage.getByTestId('slot-button');
