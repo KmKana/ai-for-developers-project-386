@@ -31,9 +31,9 @@ dir = "api/tsp"
 run = "npm ci"
 
 [tasks.install-frontend]
-description = "Установить npm-зависимости фронтенда"
+description = "Установить npm-зависимости фронтенда из lockfile"
 dir = "frontend"
-run = "npm install"
+run = "npm ci"
 
 # --- Проверки ---
 
@@ -48,36 +48,57 @@ run = "mvn -B spotless:check"
 
 [tasks.lint-frontend]
 description = "ESLint и Prettier на фронтенде"
+# check-contract перегенерирует SDK, который читают все фронтенд-проверки.
+wait_for = ["check-contract"]
 dir = "frontend"
 run = "npm run lint && npm run format:check"
 
 [tasks.test]
-description = "Тесты бэкенда (JUnit 5), включая дымовой тест запуска"
+description = "Тесты бэкенда (JUnit 5), включая контрактные и тест конкурентности"
+# Контрактные тесты читают OpenAPI, который перегенерирует check-contract.
+wait_for = ["check-contract"]
 dir = "backend"
 run = "mvn -B test"
 
 [tasks.test-frontend]
 description = "Тесты фронтенда (Vitest)"
+# Vitest чувствителен к 5-секундным таймаутам, поэтому не запускается
+# параллельно с генерацией SDK, сборкой и JUnit. wait_for действует, только когда
+# эти задачи уже есть в прогоне: `mise run test-frontend` работает и автономно.
+wait_for = ["check-contract", "lint-frontend", "build-frontend", "test"]
 dir = "frontend"
 run = "npm run test"
 
 [tasks.build-frontend]
 description = "Проверка типов и сборка фронтенда"
+wait_for = ["check-contract", "lint-frontend"]
 dir = "frontend"
 run = "npm run build"
 
 [tasks.test-e2e]
-description = "Браузерный E2E с настоящими React и Spring Boot (не входит в check)"
+description = "Браузерный E2E с настоящими React и Spring Boot (финальный шаг check)"
+# E2E поднимает серверы только после успеха всех остальных проверок: при падении
+# любой из них mise не запустит E2E, поэтому фоновые серверы не останутся.
+wait_for = ["lint", "test", "test-frontend", "build-frontend", "check-contract", "test-check-gate"]
 dir = "frontend"
+# Порты 18080/15173 фиксированы: lock не даёт двум прогонам E2E на одной машине
+# бороться за них. Playwright сам останавливает серверы при любом исходе теста.
+lock = "callbooking-e2e-ports"
 run = "npm run test:e2e"
 
 [tasks.check-contract]
 description = "Проверить расхождение OpenAPI и SDK с TypeSpec"
 run = "node scripts/check-contract-artifacts.mjs"
 
+[tasks.test-check-gate]
+description = "Проверить, что единый шлюз и CI запускают все проверки"
+run = "node --test scripts/check-gate.test.mjs"
+
 [tasks.check]
-description = "Единая команда всех проверок: линтеры + тесты + сборка + контракт"
-depends = ["lint", "test", "test-frontend", "build-frontend", "check-contract"]
+description = "Единый шлюз: линтеры, JUnit, Vitest, сборка, контракт и браузерный E2E"
+# lint-backend и check-contract идут параллельно, остальное упорядочено через
+# wait_for. Если любая проверка падает, E2E не запускается.
+depends = ["lint", "test", "test-frontend", "build-frontend", "check-contract", "test-check-gate", "test-e2e"]
 
 # --- Разработка ---
 
