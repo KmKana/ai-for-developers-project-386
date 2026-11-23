@@ -16,7 +16,7 @@ async function createMeetingType(name: string): Promise<MeetingType> {
   const { data, error, response } = await apiCreateMeetingType({
     body: { name, description: 'E2E: полный путь Гостя', durationMinutes: 30 },
   });
-  expect(response.status(), `POST /api/meeting-types: ${JSON.stringify(error)}`).toBe(201);
+  expect(response.status, `POST /api/meeting-types: ${JSON.stringify(error)}`).toBe(201);
   expect(error).toBeUndefined();
   if (!data) {
     throw new Error('Сервер не вернул созданный Тип встречи');
@@ -97,7 +97,7 @@ test('гость записывается на слот, конфликт из �
     error: bookingsError,
     response: bookingsResponse,
   } = await apiListBookings();
-  expect(bookingsResponse.status()).toBe(200);
+  expect(bookingsResponse.status).toBe(200);
   expect(bookingsError).toBeUndefined();
   const savedBookings = bookings ?? [];
   expect(savedBookings).toHaveLength(1);
